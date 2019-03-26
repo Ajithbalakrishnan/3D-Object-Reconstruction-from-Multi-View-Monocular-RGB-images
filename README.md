@@ -1,2 +1,2 @@
-# Embedded-Projects
-This Repo is for Academic projects. Codes may not be optimized.
+# 3D Model Reconstruction
+
