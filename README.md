@@ -1,4 +1,4 @@
-# 3D-Model-Reconstruction - TF Implementation of Attaets
+# 3D-Model-Reconstruction - TF Implementation of Attsets
 # Attentional Aggregation of Deep Feature Sets <br /> for Multi-view 3D Reconstruction
 Bo Yang, Sen Wang, Andrew Markham, Niki Trigoni. arXiv preprint arXiv:1808.00758, 2018.
 
