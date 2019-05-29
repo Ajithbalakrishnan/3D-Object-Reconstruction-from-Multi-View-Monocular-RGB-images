@@ -8,20 +8,21 @@ import matplotlib.pyplot as plt
 
 GPU='0'
 
-def load_real_rgbs(test_mv=3):
-    obj_rgbs_folder ='./Data_sample/amazon_real_rgbs/edited/'
+
+def load_real_rgbs(test_mv=5):
+    obj_rgbs_folder ='./Data_sample/amazon_real_rgbs/airfilter/'
     rgbs = []
     rgbs_views = sorted(os.listdir(obj_rgbs_folder))
     for v in rgbs_views:
         if not v.endswith('png'): continue
-        print('start')
+      
         rgbs.append(tools.Data.load_single_X_rgb_r2n2(obj_rgbs_folder + v, train=False))
-    print('end')
+    
     rgbs = np.asarray(rgbs)
     x_sample = rgbs[0:test_mv, :, :, :].reshape(1, test_mv, 127, 127, 3)
     return x_sample, None
 
-def load_shapenet_rgbs(test_mv=3):
+def load_shapenet_rgbs(test_mv=8):
     obj_rgbs_folder = './Data_sample/ShapeNetRendering/03001627/1a6f615e8b1b5ae4dbbc9440457e303e/rendering/'
     obj_gt_vox_path ='./Data_sample/ShapeNetVox32/03001627/1a6f615e8b1b5ae4dbbc9440457e303e/model.binvox'
     rgbs=[]
@@ -46,14 +47,27 @@ def ttest_demo():
         saver = tf.train.import_meta_graph(model_path + 'model.cptk.meta', clear_devices=True)
         saver.restore(sess, model_path + 'model.cptk')
         print ('model restored!')
-
+		
+        #merge = tf.summary.merge_all() 
+        #writer = tf.summary.FileWriter('./graphs/test', sess.graph)
+        
+       #graph = tf.get_default_graph()
+       # print(graph.get_operations())
+        
         X = tf.get_default_graph().get_tensor_by_name("Placeholder:0")
-        Y_pred = tf.get_default_graph().get_tensor_by_name("r2n/Reshape_9:0")
+        Y_pred = tf.get_default_graph().get_tensor_by_name("r2n/Reshape_7:0")
+
+  #      print(X)        #Tensor("Placeholder:0", shape=(?, ?, 127, 127, 3), dtype=float32)
+
+  #      print(Y_pred)   #Tensor("r2n/Reshape_9:0", shape=(?, 32, 32, 32), dtype=float32)
+
 
         x_sample, gt_vox = load_real_rgbs()
         #x_sample, gt_vox = load_shapenet_rgbs()
         y_pred = sess.run(Y_pred, feed_dict={X: x_sample})
-
+    print(y_pred.shape)                ###########################################(1, 32, 32, 32) ##################################
+   
+	
     ###### to visualize
     th = 0.25
     y_pred[y_pred>=th]=1
@@ -66,6 +80,12 @@ def ttest_demo():
 
 #########################
 if __name__ == '__main__':
+	 
 	print ('enterd')    
 	ttest_demo()
+#	with tf.Session() as sess:
+    # or creating the writer inside the session
+#		merge = tf.summary.merge_all()            
+#		writer = tf.summary.FileWriter('./graphs/test', sess.graph)
+		
     
