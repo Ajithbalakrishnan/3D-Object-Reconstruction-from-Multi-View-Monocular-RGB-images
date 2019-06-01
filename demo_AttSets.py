@@ -56,7 +56,7 @@ def ttest_demo():
        # print(graph.get_operations())
         
         X = tf.get_default_graph().get_tensor_by_name("Placeholder:0")
-        Y_pred = tf.get_default_graph().get_tensor_by_name("r2n/Reshape_7:0")
+        Y_pred = tf.get_default_graph().get_tensor_by_name("r2n/Reshape_9:0")
 
   #      print(X)        #Tensor("Placeholder:0", shape=(?, ?, 127, 127, 3), dtype=float32)
 
