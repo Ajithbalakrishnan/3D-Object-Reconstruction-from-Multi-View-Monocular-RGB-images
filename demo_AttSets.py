@@ -36,7 +36,8 @@ def load_shapenet_rgbs(test_mv=8):
     return x_sample, y_true
 
 def ttest_demo():
-    model_path = './Model_released/'
+    model_path = '/home/ajith/3d-reconstruction/attsets/Model_released/'
+#    model_path = './Model_released/'
     if not os.path.isfile(model_path + 'model.cptk.data-00000-of-00001'):
         print ('please download our released model first!')
         return
