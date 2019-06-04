@@ -165,7 +165,7 @@ class Data:
     
     @staticmethod
     def load_single_X_rgb_r2n2(img_path, train):
-        print('load_single_x_rgb_r2n2')
+        print('load_single_X_rgb_r2n2')
         im = Image.open(img_path)
         
         t_im = Data.preprocess_img(im, train=train)
