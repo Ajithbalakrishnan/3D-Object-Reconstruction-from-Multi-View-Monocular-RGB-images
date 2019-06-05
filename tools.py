@@ -32,7 +32,7 @@ class Data:
 
     @staticmethod
     def plotFromVoxels(voxels,title=''):
-        print('plotfromvoxel')
+#        print('plotfromvoxel')
         voxel2obj('prediction.obj', voxels)
         if len(voxels.shape) > 3:
             x_d = voxels.shape[0]
@@ -85,7 +85,7 @@ class Data:
     ########## from 3D-R2N2
     @staticmethod
     def crop_center(im, new_height, new_width):
-        print('crop_center')
+#        print('crop_center')
         height = im.shape[0]  # Get dimensions
         width = im.shape[1]
         left = (width - new_width) // 2
@@ -96,7 +96,7 @@ class Data:
     
     @staticmethod
     def add_random_color_background(im, color_range):
-        print('add_random_color_background')
+#        print('add_random_color_background')
         r, g, b = [np.random.randint(color_range[i][0], color_range[i][1] + 1) for i in range(3)]
 #        print (r)
 #        print (g)
@@ -120,7 +120,7 @@ class Data:
     
     @staticmethod
     def image_transform(img, crop_x, crop_y, crop_loc=None, color_tint=None):
-        print('image_transform')
+#        print('image_transform')
         RANDOM_CROP = True
         # Slight translation
         if RANDOM_CROP and not crop_loc:
@@ -141,7 +141,7 @@ class Data:
     
     @staticmethod
     def preprocess_img(im, train):
-        print('processing_img')
+#        print('processing_img')
         # add random background
         TRAIN_NO_BG_COLOR_RANGE = [[225, 255], [225, 255], [225, 255]]
         TEST_NO_BG_COLOR_RANGE = [[240, 240], [240, 240], [240, 240]]
@@ -165,7 +165,7 @@ class Data:
     
     @staticmethod
     def load_single_X_rgb_r2n2(img_path, train):
-        print('load_single_X_rgb_r2n2')
+#        print('load_single_X_rgb_r2n2')
         im = Image.open(img_path)
         
         t_im = Data.preprocess_img(im, train=train)
@@ -175,7 +175,7 @@ class Data:
 
     @staticmethod
     def load_single_Y_vox(vox_path):
-        print('load_single_Y_vox')
+#        print('load_single_Y_vox')
         with open(vox_path, 'rb') as ff:
             vox = binvox_rw.read_as_3d_array(ff)
             vox_grid = vox.data.astype(int)
@@ -185,7 +185,7 @@ class Data:
 
     @staticmethod
     def load_X_Y_files_paths(X_cat_folder, Y_cat_folder):
-        print('load_X_Y_files_paths')
+#        print('load_X_Y_files_paths')
         X_obj_folders=[X_f for X_f in sorted(os.listdir(X_cat_folder))]
         Y_obj_folders=[Y_f for Y_f in sorted(os.listdir(Y_cat_folder))]
         if len(X_obj_folders) != len(Y_obj_folders):
@@ -215,7 +215,7 @@ class Data:
 
         #########
         def load_x_y_files(X_obj_fo, Y_obj_fo):
-            print('load_x_y_files')
+#            print('load_x_y_files')
             X_files_paths = []
             Y_files_paths = []
             for j in range(len(X_obj_fo)):
@@ -236,7 +236,7 @@ class Data:
 
     @staticmethod
     def load_X_Y_rgb_vox(X_files_full_path, Y_files_full_path, train):
-        print('load_X_Y_rgb_vox')
+#        print('load_X_Y_rgb_vox')
         if len(X_files_full_path) != len(Y_files_full_path):
             print ('load_X_Y_rgb_vox error!')
             exit()
@@ -258,7 +258,7 @@ class Data:
         return X_rgb, Y_vox
 
     def load_X_Y_files_paths_all(self,cat_names):
-        print('load_X_Y_files_paths_all')
+#        print('load_X_Y_files_paths_all')
         x_rgb_str='X_rgb_'
         y_vox_str='Y_vox_'
 
@@ -286,7 +286,7 @@ class Data:
 
     ################################
     def load_X_Y_train_next_batch(self, train_mv):
-        print('load_X_Y_train_next_batch')
+#        print('load_X_Y_train_next_batch')
         X_rgb_files = self.X_rgb_train_files[self.batch_size*self.train_batch_index*train_mv:self.batch_size*(self.train_batch_index+1)*train_mv]
         Y_vox_files = self.Y_vox_train_files[self.batch_size*self.train_batch_index*train_mv:self.batch_size*(self.train_batch_index+1)*train_mv]
         self.train_batch_index +=1
@@ -302,7 +302,7 @@ class Data:
         return X, Y
 
     def load_X_Y_test_next_batch(self, test_mv):
-        print('load_X_Y_test_next_batch')
+#        print('load_X_Y_test_next_batch')
         num = self.total_mv
         idx = random.sample(range(len(self.X_rgb_test_files_ori)//num), self.batch_size)  ##############added extra '/'
         X_rgb_files = []
@@ -329,7 +329,7 @@ class Data:
         return X, Y
 
     def shuffle_train_files(self, ep, train_mv):
-        print('shuffle_train_files')
+#        print('shuffle_train_files')
         num = self.total_mv
         X_rgb_new=[]; Y_vox_new=[]
         self.train_batch_index = 0
@@ -361,7 +361,7 @@ class Data:
         self.total_train_batch_num = int(len(self.X_rgb_train_files)/(self.batch_size*train_mv))
     
     def shuffle_test_files(self, test_mv, seed):
-        print('shuffle_test_files')
+#        print('shuffle_test_files')
         X_rgb_new=[]; Y_vox_new=[]
         X_rgb = self.X_rgb_test_files_ori
         Y_vox = self.Y_vox_test_files_ori

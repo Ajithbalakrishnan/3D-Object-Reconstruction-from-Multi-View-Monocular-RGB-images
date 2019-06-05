@@ -1,5 +1,4 @@
 import tensorflow as tf
-from tensorflow.keras.callbacks import TensorBoard         ###@@##@@
 import os
 import shutil
 import sys
@@ -8,18 +7,23 @@ sys.path.append('..')
 import tools as tools
 import numpy as np
 import time
-#@@@@####################################@@@@@@@@@@@@@@@@@@@@@@
+
+###################
+import tflearn
+###################
+
 batch_size = 1
 img_res = 127
 vox_res32 = 32
 total_mv = 24   #Virtual memory use
 GPU0 = '0'
-#re_train=False
-re_train=True
+re_train=False
+#re_train=True
 single_view_train = False
 multi_view_train = False
 
 #####################################
+
 config={}                                 # python dictionary
 config['batch_size'] = batch_size
 config['total_mv'] = total_mv
@@ -235,8 +239,8 @@ class Network:
 		self.sum_writer_test = tf.summary.FileWriter(self.test_sum_dir, self.sess.graph)
 
 		#######################
-		#path = self.train_mod_dir
-		path = './Model_released/'  # retrain the released model
+		path = self.train_mod_dir
+		#path = './Model_released/'  # retrain the released model
 
 		if os.path.isfile(path + 'model.cptk.data-00000-of-00001'):
 			print ("restoring saved model!")
@@ -257,7 +261,7 @@ class Network:
 				print(time.ctime())
 
                                 
-
+#				model = tflearn.DNN(self.base_r2n2, tensorboard_verbose=3, tensorboard_dir="./tflearn/logs",)
 				##### option 1: seperate train, seperate optimize
 				#if epoch<=30:
 				#	single_view_train=True
@@ -337,7 +341,7 @@ if __name__ =='__main__':
 		
 		data = tools.Data(config)
 		print("tools.data compleated")
-		print(data.shape)
+
                 
 		print('trianing data')
 		
