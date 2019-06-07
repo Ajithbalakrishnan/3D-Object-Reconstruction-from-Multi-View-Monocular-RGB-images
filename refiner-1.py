@@ -10,6 +10,9 @@ class Refiner(torch.nn.Module):
         super(Refiner, self).__init__()
         self.cfg = cfg
 
+#rch.nn.Conv3d(in_channels, out_channels, kernel_size, stride=1, padding=0, dilation=1, groups=1, bias=True, padding_mode='zeros'
+
+
         # Layer Definition
         self.layer1 = torch.nn.Sequential(
             torch.nn.Conv3d(1, 32, kernel_size=4, padding=2),
