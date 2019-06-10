@@ -11,11 +11,7 @@ class Refiner(torch.nn.Module):
         self.cfg = cfg
 
         # Layer Definition
-        self.layer1 = Sequential(
-#            keras.layers.Conv3D(filters, kernel_size, strides=(1, 1, 1), padding='valid', data_format=None, dilation_rate=(1, 1, 1), activation=None, use_bias=True, kernel_initializer='glorot_uniform', bias_initializer='zeros', kernel_regularizer=None, bias_regularizer=None, activity_regularizer=None, kernel_constraint=None, bias_constraint=None)
-            
-#torch.nn.Conv3d(in_channels, out_channels, kernel_size, stride=1, padding=0, dilation=1, groups=1, bias=True, padding_mode='zeros')
-
+        self.layer1 = Sequential(       
             torch.nn.Conv3d(1, 32, kernel_size=4, padding=2), 
             torch.nn.BatchNorm3d(32),
             torch.nn.LeakyReLU(cfg.NETWORK.LEAKY_VALUE),

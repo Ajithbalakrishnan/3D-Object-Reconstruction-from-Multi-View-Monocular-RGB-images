@@ -44,15 +44,12 @@ class Data:
         else:
             v = voxels
         
-        print(v.shape)   ###############################################  (32, 32, 32)  ##################################
-
+        print("voxels_plot",v.shape)   ###############################################  (32, 32, 32)  ##################################
          		
         u=voxels
         vertices, triangles = mcubes.marching_cubes(u, 0)
         mcubes.export_mesh(vertices, triangles, "sphere.dae", "MySphere")
         export_obj(vertices, triangles,'sample.obj')
-
-   
 
         x, y, z = v.nonzero()
         fig = plt.figure()
@@ -79,9 +76,6 @@ class Data:
         show(block=False)
         
 
-
-
-
     ########## from 3D-R2N2
     @staticmethod
     def crop_center(im, new_height, new_width):
@@ -103,11 +97,11 @@ class Data:
 #        print (b)
         if isinstance(im, Image.Image):
             im = np.array(im) 
-        print (im.shape)
-      #  b = np.array([3])         ###
-      #  np.concatenate((im, b))    ##
-        #im.numpy.append(3)        ###
-       # print (im.shape)         ###
+#        print (im.shape)
+#        b = np.array([3])         ###
+#        np.concatenate((im, '3'))    ##
+#        im=np.append(im,3)        ###
+#        print (im.shape)         ###
         if im.shape[2] > 3:
               
             # If the image has the alpha channel, add the background
@@ -391,10 +385,8 @@ class Ops:
 
     @staticmethod
     def lrelu(x, leak=0.2):
-        f1 = 0.5 * (1 + leak)
-        f2 = 0.5 * (1 - leak)
-        return f1 * x + f2 * abs(x)
-
+       return  tf.nn.leaky_relu(x,alpha=0.2,name=None)
+	   
     @staticmethod
     def relu(x):
         return tf.nn.relu(x)
