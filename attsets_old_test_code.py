@@ -22,8 +22,8 @@ def load_real_rgbs(test_mv=3):
     return x_sample, None
 
 def load_shapenet_rgbs(test_mv=3):
-    obj_rgbs_folder = './Data_sample/ShapeNetRendering/03001627/airfilter/rendering/'
-    obj_gt_vox_path ='./Data_sample/ShapeNetVox32/03001627/airfilter/model.binvox'
+    obj_rgbs_folder = './Data_sample/ShapeNetRendering/03001627/1a6f615e8b1b5ae4dbbc9440457e303e/rendering/'
+    obj_gt_vox_path ='./Data_sample/ShapeNetVox32/03001627/1a6f615e8b1b5ae4dbbc9440457e303e/model.binvox'
     rgbs=[]
     rgbs_views = sorted(os.listdir(obj_rgbs_folder))
     for v in rgbs_views:
@@ -54,21 +54,32 @@ def ttest_demo():
         X = tf.get_default_graph().get_tensor_by_name("Placeholder:0")
         Y_pred = tf.get_default_graph().get_tensor_by_name("r2n/Reshape_9:0")
 
-        x_sample, gt_vox = load_real_rgbs()
-        #x_sample, gt_vox = load_shapenet_rgbs()
+#        x_sample, gt_vox = load_real_rgbs()
+        x_sample, gt_vox = load_shapenet_rgbs()
         
 	### reconstruction loss #########################################################
    
-#        gt_vox=gt_vox.astype(np.float32)
-#        Y_vox_ = tf.reshape(gt_vox, shape=[-1, vox_res ** 3])
-#        Y_pred_ = tf.reshape(Y_pred, shape=[-1, vox_res ** 3])
-#        rec_loss = tf.reduce_mean(-tf.reduce_mean(Y_vox_ * tf.log(Y_pred_ + 1e-8), reduction_indices=[1])-tf.reduce_mean((1 - Y_vox_) * tf.log(1 - Y_pred_ + 1e-8),reduction_indices=[1]))
+        gt_vox1=gt_vox.astype(np.float32)
+        Y_vox_ = tf.reshape(gt_vox1, shape=[-1, vox_res ** 3])
+        Y_pred_ = tf.reshape(Y_pred, shape=[-1, vox_res ** 3])
+        rec_loss = tf.reduce_mean(-tf.reduce_mean(Y_vox_ * tf.log(Y_pred_ + 1e-8), reduction_indices=[1])-tf.reduce_mean((1 - Y_vox_) * tf.log(1 - Y_pred_ + 1e-8),reduction_indices=[1]))
+        
+        gt_vox=gt_vox.astype(np.float64)
+#        Y_pred=Y_pred.astype(np.int32)
+
+        Y_vox_ = tf.reshape(gt_vox, shape=[-1, vox_res ** 3,1])
+        Y_pred_ = tf.reshape(Y_pred, shape=[-1, vox_res ** 3,1])
+        iou = tf.metrics.mean_iou(labels=Y_vox_,predictions=Y_pred_,num_classes=1)
+        sess.run(tf.local_variables_initializer())
+
+
                                 #########################################################
         ## session run
-#        y_pred,recon_loss = sess.run([Y_pred, rec_loss], feed_dict={X: x_sample})			                     
-#        print("reconstruction loss : ",	recon_loss)		                     
-
-        y_pred= sess.run(Y_pred, feed_dict={X: x_sample})             
+        y_pred,recon_loss,iou_value = sess.run([Y_pred, rec_loss,iou], feed_dict={X: x_sample})			                     
+        print("Cross entropy loss : ",	recon_loss)
+        print("IOU :",iou_value)		                     
+        
+#        y_pred= sess.run(Y_pred, feed_dict={X: x_sample})             
     ###### to visualize
     th = 0.25
     y_pred[y_pred>=th]=1

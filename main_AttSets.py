@@ -46,35 +46,35 @@ def refiner_network(volumes_in):
 	
 	print("input_volumes_32_shape" , input_volumes_32.shape)   #input_volumes_32_shape (?,32,32,32,1)
 	
-	rn1=Conv3D(filters=32, kernel_size=(4, 4, 4), padding='same',data_format="channels_last")(input_volumes_32)
+	rn1=Conv3D(filters=32, kernel_size=(4, 4, 4), padding='same',data_format="channels_last",name='ref_c1')(input_volumes_32)
 	rn2=BatchNormalization()(rn1)
 	rn3=LeakyReLU(alpha=.2)(rn2)
-	volumes_16_l =MaxPooling3D(pool_size=(2, 2, 2))(rn3)
+	volumes_16_l =MaxPooling3D(pool_size=(2, 2, 2),name='ref_m1')(rn3)
 	
 	print("volumes_16_l_shape" , volumes_16_l.shape)      #volumes_16_l_shape (?,16,16,16,32)
 	
-	rn5=Conv3D(filters=64, kernel_size=(4, 4, 4), padding='same',data_format="channels_last")(volumes_16_l)
+	rn5=Conv3D(filters=64, kernel_size=(4, 4, 4), padding='same',data_format="channels_last",name='ref_c2')(volumes_16_l)
 	rn6=BatchNormalization()(rn5)
 	rn7=LeakyReLU(alpha=.2)(rn6)
-	volumes_8_l =MaxPooling3D(pool_size=(2, 2, 2))(rn7)
+	volumes_8_l =MaxPooling3D(pool_size=(2, 2, 2),name='ref_m2')(rn7)
 	
 	print("volumes_8_l_shape" ,volumes_8_l.shape)
 	
-	rn9=Conv3D(filters=128, kernel_size=(4, 4, 4), padding='same',data_format="channels_last")(volumes_8_l)
+	rn9=Conv3D(filters=128, kernel_size=(4, 4, 4), padding='same',data_format="channels_last",name='ref_c3')(volumes_8_l)
 	rn10=BatchNormalization()(rn9)
 	rn11=LeakyReLU(alpha=.2)(rn10)
-	volumes_4_l =MaxPooling3D(pool_size=(2, 2, 2))(rn11)
+	volumes_4_l =MaxPooling3D(pool_size=(2, 2, 2),name='ref_m3')(rn11)
 	
 	print("volumes_4_l_shape" , volumes_4_l.shape)
 	
 	flatten_features=tf.reshape(volumes_4_l , [-1,8192])   
 	
-	fc1=Dense(units=2048, activation='relu')(flatten_features)
+	fc1=Dense(units=2048, activation='relu',name='ref_fc1')(flatten_features)
 	fc1=relu(fc1, alpha=0.0, max_value=None, threshold=0.0)
 	
 	print("fc1_shape",fc1.shape)
 	
-	fc2=Dense(units=8192, activation='relu')(fc1)
+	fc2=Dense(units=8192, activation='relu',name='ref_fc2')(fc1)
 	fc2=relu(fc2, alpha=0.0, max_value=None, threshold=0.0)
 	
 	print("fc2_shape",fc2.shape)
@@ -118,6 +118,7 @@ def attsets_fc(x, out_ele_num,  name):
     in_ele_num = tf.shape(x)[1]
     in_ele_len = int(x.get_shape()[2])
     out_ele_len = in_ele_len    
+    print("out_ele_len ", out_ele_len)
 	####################
     x_1st = x
     x_1st_tp = tf.reshape(x_1st, [-1, in_ele_len])
@@ -340,13 +341,15 @@ class Network:
 			                     tf.reduce_mean((1 - Y_vox_) * tf.log(1 - Y_pred_ + 1e-8),reduction_indices=[1]))
 			sum_rec_loss = tf.summary.scalar('rec_loss', self.rec_loss)
 			self.sum_merged = sum_rec_loss
-			tf.summary.histogram('rec_loss', self.rec_loss) 
+			self.sum_histo=tf.summary.histogram('rec_loss', self.rec_loss) 
              
 
 			base_var = [var for var in tf.trainable_variables() if var.name.startswith('r2n/l')]
 			att_var = [var for var in tf.trainable_variables() if var.name.startswith('r2n/att')]
+			refine_var = [var for var in tf.trainable_variables() if var.name.startswith('r2n/ref')]
 			self.base_optim = tf.train.AdamOptimizer(learning_rate=self.lr).minimize(self.rec_loss, var_list=base_var)
 			self.att_optim = tf.train.AdamOptimizer(learning_rate=self.lr).minimize(self.rec_loss, var_list=att_var)
+			self.refine_optim = tf.train.AdamOptimizer(learning_rate=0.001).minimize(self.rec_loss, var_list=refine_var)
 		
 		print ("total weights:",tools.Ops.variable_count())
 		self.saver = tf.train.Saver(max_to_keep=1)
@@ -369,7 +372,7 @@ class Network:
 		return 0
     
 	def train(self, data):
-		for epoch in range(0, 2, 1):
+		for epoch in range(0, 3, 1):
 			train_view_num = 24  ##!!!!!!!!!!!
 			data.shuffle_train_files(epoch, train_mv=train_view_num)
 			total_train_batch_num = data.total_train_batch_num  #int(len(self.X_rgb_train_files)/(self.batch_size*train_mv))
@@ -397,19 +400,20 @@ class Network:
 					rgb = np.reshape(X_rgb_bat,[batch_size*train_view_num, 1, 127,127,3])
 					vox = np.tile(Y_vox_bat[:,None,:,:,:],[1,train_view_num,1,1,1])
 					vox = np.reshape(vox, [batch_size*train_view_num, 32,32,32])
-					_, rec_loss_c, sum_train = self.sess.run([self.base_optim,self.rec_loss,self.sum_merged],
+					_, rec_loss_c, sum_train,xxx,sum_train_histo = self.sess.run([self.base_optim,self.rec_loss,self.sum_merged,self.refine_optim,self.sum_histo],
 					feed_dict={self.X_rgb: rgb, self.Y_vox: vox, self.lr: 0.0001})
 					print ('ep:', epoch, 'i:', i, 'train single rec loss:', rec_loss_c)
                                         									
 				########## multi view train
 				if multi_view_train:
-					rec_loss_c, _, sum_train = self.sess.run([self.rec_loss, self.att_optim, self.sum_merged],
+					rec_loss_c, _, sum_train,xxx,sum_train_histo = self.sess.run([self.rec_loss, self.att_optim, self.sum_merged,self.refine_optim,self.sum_histo],
 				    feed_dict={self.X_rgb: X_rgb_bat, self.Y_vox: Y_vox_bat,self.lr: 0.0001})
 					print ('ep:', epoch, 'i:', i, 'train multi rec loss:', rec_loss_c)
                                         				
 				############
-				if epoch % 100 == 0:
+				if epoch % 1 == 0:
 					self.sum_writer_train.add_summary(sum_train, epoch * total_train_batch_num + i)
+					self.sum_writer_train.add_summary(sum_train_histo, epoch * total_train_batch_num + i)
 				
 				#### testing
 				if epoch > 150 :
