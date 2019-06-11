@@ -6,10 +6,46 @@ import tools as tools
 import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd 
+import copy 
+import shutil
 GPU='0'
-
+resolution = 32
+batch_size = 1
 vox_res = 32
 
+def metric_IoU(batch_voxel_occup_pred, batch_voxel_occup_true):
+    batch_voxel_occup_pred_ = copy.deepcopy(batch_voxel_occup_pred)
+    batch_voxel_occup_pred_[batch_voxel_occup_pred_ >= 0.5] = 1
+    batch_voxel_occup_pred_[batch_voxel_occup_pred_ < 0.5] = 0
+	
+    I = batch_voxel_occup_pred_ * batch_voxel_occup_true
+    U = batch_voxel_occup_pred_ + batch_voxel_occup_true
+    print("U",U)
+    print("I",I)			
+    U[U < 1] = 0
+    U[U >= 1] = 1
+    iou = np.sum(I) * 1.0 / np.sum(U) * 1.0
+    return iou
+	
+def process_voxel(src):
+    if len(src)<=0:
+        
+        exit()
+    batch_i = 0
+    dst = np.zeros((batch_size, resolution, resolution, resolution, 1))
+    for batch in src:
+        for i in batch:
+            dst[int(batch_i), int(i[0]), int(i[1]), int(i[2]), 0] = 1 # occupied
+        batch_i += 1
+    return dst	
+def evaluate_voxel_prediction(prediction, gt):
+  #"""  The prediction and gt are 3 dim voxels. Each voxel has values 1 or 0"""
+ #   prediction=prediction.astype(np.int)    
+    intersection = np.sum(np.logical_and(prediction,gt))
+    union = np.sum(np.logical_or(prediction,gt))
+    IoU = float(intersection) / float(union)
+    return IoU
+  
 def load_real_rgbs(test_mv=3):
     obj_rgbs_folder ='./Data_sample/amazon_real_rgbs/lamp/'
     rgbs = []
@@ -64,20 +100,24 @@ def ttest_demo():
         Y_pred_ = tf.reshape(Y_pred, shape=[-1, vox_res ** 3])
         rec_loss = tf.reduce_mean(-tf.reduce_mean(Y_vox_ * tf.log(Y_pred_ + 1e-8), reduction_indices=[1])-tf.reduce_mean((1 - Y_vox_) * tf.log(1 - Y_pred_ + 1e-8),reduction_indices=[1]))
         
-        gt_vox=gt_vox.astype(np.float64)
-#        Y_pred=Y_pred.astype(np.int32)
-
-        Y_vox_ = tf.reshape(gt_vox, shape=[-1, vox_res ** 3,1])
-        Y_pred_ = tf.reshape(Y_pred, shape=[-1, vox_res ** 3,1])
-        iou = tf.metrics.mean_iou(labels=Y_vox_,predictions=Y_pred_,num_classes=1)
-        sess.run(tf.local_variables_initializer())
-
-
-                                #########################################################
+                                           #########################################################
         ## session run
-        y_pred,recon_loss,iou_value = sess.run([Y_pred, rec_loss,iou], feed_dict={X: x_sample})			                     
+        y_pred,recon_loss = sess.run([Y_pred, rec_loss], feed_dict={X: x_sample})		
+		
+        print("y_pred",y_pred.shape)		
         print("Cross entropy loss : ",	recon_loss)
-        print("IOU :",iou_value)		                     
+		
+#        Y_vox =  tf.reshape(gt_vox, [-1, vox_res, vox_res, vox_res])
+#        print("g_true",Y_vox.shape)
+
+        Y_vox=process_voxel(gt_vox)
+        print("g_true",Y_vox.shape)
+		
+ #       iou_=evaluate_voxel_prediction(y_pred,Y_vox)
+ #       print("evaluate_voxel_prediction:",iou_)
+		
+        iou_value= metric_IoU( y_pred,Y_vox)
+        print("metric_IoU :",iou_value)		                     
         
 #        y_pred= sess.run(Y_pred, feed_dict={X: x_sample})             
     ###### to visualize
