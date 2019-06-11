@@ -10,6 +10,7 @@ import time
 from keras.layers import BatchNormalization,Conv3D,MaxPooling3D,Dense,Reshape,Add,LeakyReLU
 from keras.activations import relu,sigmoid
 from keras import models
+import copy 
 ###################
 #import tflearn
 ###################
@@ -37,7 +38,17 @@ for name in config['cat_names']:
     config['Y_vox_'+name] = './Data_sample/ShapeNetVox32/'+name+'/'
 
 # output : {'batch_size': 1, 'total_mv': 24, 'cat_names': ['03001627'], 'Y_vox_03001627': '/home/wiproec4/3d reconstruction/attsets/Data_sample/#ShapeNetVox32/03001627/', 'X_rgb_03001627': '/home/wiproec4/3d reconstruction/attsets/Data_sample/ShapeNetRendering/03001627/'}
-
+def metric_IoU(batch_voxel_occup_pred, batch_voxel_occup_true):
+    batch_voxel_occup_pred_ = copy.deepcopy(batch_voxel_occup_pred)
+    batch_voxel_occup_pred_[batch_voxel_occup_pred_ >= 0.5] = 1
+    batch_voxel_occup_pred_[batch_voxel_occup_pred_ < 0.5] = 0
+	
+    I = batch_voxel_occup_pred_ * batch_voxel_occup_true
+    U = batch_voxel_occup_pred_ + batch_voxel_occup_true			
+    U[U < 1] = 0
+    U[U >= 1] = 1
+    iou = np.sum(I) * 1.0 / np.sum(U) * 1.0
+    return iou
 
 #####################################
 def refiner_network(volumes_in):
@@ -204,9 +215,12 @@ class Network:
  
 		en_c = [96, 128, 256, 256, 256, 256]
 		l1 = tools.Ops.xxlu(tools.Ops.conv2d(X_rgb, k=7, out_c=en_c[0], str=1, name='l1'), label='lrelu')
+#		tf.summary.image(name="2D_c1",tensor=l1,max_outputs=1)
 		print("l1_r2n",l1.shape)
 		l2 = tools.Ops.xxlu(tools.Ops.conv2d(l1, k=3, out_c=en_c[0], str=1, name='l2'), label='lrelu')
+#		tf.summary.image(name="2D_c2",tensor=l2,max_outputs=1)
 		l2 = tools.Ops.maxpool2d(l2, k=2, s=2, name='l2_p')
+#		tf.summary.image(name="2D_MaxP",tensor=l2,max_outputs=1)
 		print("l2_r2n",l2.shape)
 
 		l3 = tools.Ops.xxlu(tools.Ops.conv2d(l2, k=3, out_c=en_c[1], str=1, name='l3'), label='lrelu')
@@ -331,6 +345,7 @@ class Network:
 		
 		with tf.variable_scope('r2n'):
 			self.Y_pred, self.weights = self.base_r2n2(self.X_rgb)
+			tf.summary.histogram('Attsets_Weights', self.weights)
 		
 		with tf.device('/gpu:' + GPU0):
 			### rec loss
@@ -341,7 +356,15 @@ class Network:
 			                     tf.reduce_mean((1 - Y_vox_) * tf.log(1 - Y_pred_ + 1e-8),reduction_indices=[1]))
 			sum_rec_loss = tf.summary.scalar('rec_loss', self.rec_loss)
 			self.sum_merged = sum_rec_loss
-			self.sum_histo=tf.summary.histogram('rec_loss', self.rec_loss) 
+			tf.summary.histogram('rec_loss', self.rec_loss)
+			
+			# Y_vox__=Y_vox_.astype(np.float32)
+			# iou_value= metric_IoU( Y_pred_,Y_vox__)
+			# tf.summary.histogram('iou_value', iou_value) 
+			# tf.summary.scalar('iou_value', iou_value)
+			
+#			self.sum_histo=tf.summary.histogram('rec_loss', self.rec_loss)
+ 
              
 
 			base_var = [var for var in tf.trainable_variables() if var.name.startswith('r2n/l')]
@@ -380,6 +403,9 @@ class Network:
 			for i in range(total_train_batch_num):
 				#### training
 				X_rgb_bat, Y_vox_bat = data.load_X_Y_train_next_batch(train_mv=train_view_num)
+				print("multi_view_train_X_rgb_bat : ",X_rgb_bat.shape)#np.asarray(X.append(X_rgb[b*train_mv:(b+1)*train_mv,:]))
+				
+
 				print(time.ctime())
 				
 				##### option 1: seperate train, seperate optimize
@@ -398,22 +424,23 @@ class Network:
 				if single_view_train:
 					
 					rgb = np.reshape(X_rgb_bat,[batch_size*train_view_num, 1, 127,127,3])
+					print("single_view_train_rgb_input_shape ",rgb.shape)
 					vox = np.tile(Y_vox_bat[:,None,:,:,:],[1,train_view_num,1,1,1])
 					vox = np.reshape(vox, [batch_size*train_view_num, 32,32,32])
-					_, rec_loss_c, sum_train,xxx,sum_train_histo = self.sess.run([self.base_optim,self.rec_loss,self.sum_merged,self.refine_optim,self.sum_histo],
-					feed_dict={self.X_rgb: rgb, self.Y_vox: vox, self.lr: 0.0001})
+#					_, rec_loss_c, sum_train,xxx,sum_train_histo = self.sess.run([self.base_optim,self.rec_loss,self.sum_merged,self.refine_optim,self.sum_histo],
+					_, rec_loss_c, sum_train,xxx = self.sess.run([self.base_optim,self.rec_loss,self.merged,self.refine_optim],feed_dict={self.X_rgb: rgb, self.Y_vox: vox, self.lr: 0.0001})
 					print ('ep:', epoch, 'i:', i, 'train single rec loss:', rec_loss_c)
                                         									
 				########## multi view train
 				if multi_view_train:
-					rec_loss_c, _, sum_train,xxx,sum_train_histo = self.sess.run([self.rec_loss, self.att_optim, self.sum_merged,self.refine_optim,self.sum_histo],
-				    feed_dict={self.X_rgb: X_rgb_bat, self.Y_vox: Y_vox_bat,self.lr: 0.0001})
+#					rec_loss_c, _, sum_train,xxx,sum_train_histo = self.sess.run([self.rec_loss, self.att_optim, self.sum_merged,self.refine_optim,self.sum_histo],
+					rec_loss_c, _, sum_train,xxx = self.sess.run([self.rec_loss, self.att_optim, self.merged,self.refine_optim],feed_dict={self.X_rgb: X_rgb_bat, self.Y_vox: Y_vox_bat,self.lr: 0.0001})
 					print ('ep:', epoch, 'i:', i, 'train multi rec loss:', rec_loss_c)
                                         				
 				############
 				if epoch % 1 == 0:
 					self.sum_writer_train.add_summary(sum_train, epoch * total_train_batch_num + i)
-					self.sum_writer_train.add_summary(sum_train_histo, epoch * total_train_batch_num + i)
+#					self.sum_writer_train.add_summary(sum_train_histo, epoch * total_train_batch_num + i)
 				
 				#### testing
 				if epoch > 150 :
