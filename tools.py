@@ -11,7 +11,7 @@ import re
 import binvox_rw as binvox_rw
 #################################################################
 from voxel import voxel2obj
-import mcubes
+#import mcubes
 from export_obj import export_obj 
 #################################################################
 class Data:
