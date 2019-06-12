@@ -384,8 +384,8 @@ class Network:
 		self.sum_writer_test = tf.summary.FileWriter(self.test_sum_dir, self.sess.graph)
 
 		#######################
-		path = self.train_mod_dir
-		#path = './Model_released/'  # retrain the released model
+		#path = self.train_mod_dir
+		path = './Model_released/'  # retrain the released model
 
 		if os.path.isfile(path + 'model.cptk.data-00000-of-00001'):
 			print ("restoring saved model!")
@@ -462,8 +462,7 @@ class Network:
 					self.saver.save( self.sess, save_path=self.train_mod_dir + 'model.cptk' )
 					print ( 'epoch:', epoch, 'i:', i, 'model saved!' )
   
-#				summary = self.sess.run(self.merged)                          
-#				self.sum_writer_test.add_summary(summary,i)				
+				
 
 ##########
 if __name__ =='__main__':
