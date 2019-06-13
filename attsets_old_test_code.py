@@ -47,8 +47,8 @@ def load_real_rgbs(test_mv=test_views):
     return x_sample, None
 
 def load_shapenet_rgbs(test_mv=test_views):
-    obj_rgbs_folder = './Data_sample/ShapeNetRendering/03001627/1aa07508b731af79814e2be0234da26c/rendering/'
-    obj_gt_vox_path ='./Data_sample/ShapeNetVox32/03001627/1aa07508b731af79814e2be0234da26c/model.binvox'
+    obj_rgbs_folder = './Data_sample/ShapeNetRendering/03211117/1a92ca1592aefb2f9531a714ad5bf7d5/rendering/'
+    obj_gt_vox_path ='./Data_sample/ShapeNetVox32/03211117/1a92ca1592aefb2f9531a714ad5bf7d5/model.binvox'
     rgbs=[]
     rgbs_views = sorted(os.listdir(obj_rgbs_folder))
     for v in rgbs_views:
@@ -64,7 +64,8 @@ def load_shapenet_rgbs(test_mv=test_views):
     return x_sample, Y_true_vox
     #########################################
 def ttest_demo():
-    model_path = './Model_released/'
+#    model_path = './Model_released/'
+    model_path = './train_mod/'
     if not os.path.isfile(model_path + 'model.cptk.data-00000-of-00001'):
         print ('please download our released model first!')
         return
@@ -78,9 +79,11 @@ def ttest_demo():
 
         X = tf.get_default_graph().get_tensor_by_name("Placeholder:0")
         Y_pred = tf.get_default_graph().get_tensor_by_name("r2n/Reshape_7:0")
+        
 
 #        x_sample, gt_vox = load_real_rgbs()
         x_sample, gt_vox = load_shapenet_rgbs()
+        
         
 	### reconstruction loss #########################################################
    
@@ -91,7 +94,11 @@ def ttest_demo():
         
                                 #########################################################
         ## session run
-        y_pred,recon_loss = sess.run([Y_pred, rec_loss], feed_dict={X: x_sample})		
+        y_pred,recon_loss = sess.run([Y_pred, rec_loss], feed_dict={X: x_sample})
+        print("y_pred shape ",y_pred.shape)
+        
+ #       exit()
+        		
 		
         print("Number of Views : ", test_views) 		
         print("Cross entropy loss : ",	recon_loss)

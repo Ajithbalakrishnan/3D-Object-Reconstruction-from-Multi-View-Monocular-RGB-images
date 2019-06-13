@@ -70,11 +70,13 @@ def ttest_demo():
         
 #        print("X: ", X.shape)        #Tensor("Placeholder:0", shape=(?, ?, 127, 127, 3), dtype=float32)
 #        print(Y_pred)   #Tensor("r2n/Reshape_9:0", shape=(?, 32, 32, 32), dtype=float32)   
-#        x_sample, gt_vox = load_shapenet_rgbs()    
+   
 #        print("x_sample: ", x_sample.shape)  
 #        print("x_sample_data: ", type(x_sample[:,:,:,:,1]))  
 #        print(y_pred.shape)    ###############################(1, 32, 32, 32) ##############################
 
+
+#        x_sample, gt_vox = load_shapenet_rgbs() 
         x_sample, gt_vox = load_real_rgbs()
         
    
