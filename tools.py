@@ -11,7 +11,7 @@ import re
 import binvox_rw as binvox_rw
 #################################################################
 from voxel import voxel2obj
-#import mcubes
+import mcubes
 from export_obj import export_obj 
 #################################################################
 class Data:
@@ -33,7 +33,7 @@ class Data:
     @staticmethod
     def plotFromVoxels(voxels,title=''):
 #        print('plotfromvoxel')
-        voxel2obj('prediction.obj', voxels)
+        voxel2obj(title+'voxels.obj', voxels)
         if len(voxels.shape) > 3:
             x_d = voxels.shape[0]
             y_d = voxels.shape[1]
@@ -48,8 +48,8 @@ class Data:
          		
         u=voxels
         vertices, triangles = mcubes.marching_cubes(u, 0)
-        mcubes.export_mesh(vertices, triangles, "sphere.dae", "MySphere")
-        export_obj(vertices, triangles,'sample.obj')
+        mcubes.export_mesh(vertices, triangles, title+"recon.dae", "MySphere")
+        export_obj(vertices, triangles,title+'recon.obj')
 
         x, y, z = v.nonzero()
         fig = plt.figure()
@@ -62,6 +62,8 @@ class Data:
         ax.view_init(-90, 90)
 
         max_range = np.array([x.max() - x.min(), y.max() - y.min(), z.max() - z.min()]).max()
+        print("max_range",max_range)
+
         Xb = 0.5 * max_range * np.mgrid[-1:2:2, -1:2:2, -1:2:2][0].flatten() + 0.5 * (x.max() + x.min())
         Yb = 0.5 * max_range * np.mgrid[-1:2:2, -1:2:2, -1:2:2][1].flatten() + 0.5 * (y.max() + y.min())
         Zb = 0.5 * max_range * np.mgrid[-1:2:2, -1:2:2, -1:2:2][2].flatten() + 0.5 * (z.max() + z.min())
