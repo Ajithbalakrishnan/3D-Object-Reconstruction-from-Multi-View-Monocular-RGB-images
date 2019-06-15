@@ -8,7 +8,7 @@ import tools as tools
 import numpy as np
 import time
 from keras.layers import BatchNormalization,Conv3D,MaxPooling3D,Dense,Reshape,Add,LeakyReLU,Conv3DTranspose
-from keras.activations import relu,sigmoid
+from keras.activations import relu,sigmoid,tanh
 from keras import models
 import copy 
 ###################
@@ -20,6 +20,7 @@ img_res = 127
 vox_res32 = 32
 total_mv = 24   
 GPU0 = '0'
+GPU1 = '1'
 
 re_train=False
 #re_train=True
@@ -54,88 +55,96 @@ def metric_IoU(batch_voxel_occup_pred, batch_voxel_occup_true):
 
 #####################################
 def refiner_network(volumes_in):
-	with tf.variable_scope('ref_enc'):
+    with tf.device('/gpu:' + GPU1):
+        with tf.variable_scope('ref_enc'):
 	
-		input_volumes_32 = tf.reshape(volumes_in, [-1, vox_res32, vox_res32, vox_res32, 1],name="ref_net_in")
+            input_volumes_32 = tf.reshape(volumes_in, [-1, vox_res32, vox_res32, vox_res32, 1],name="ref_net_in")
 	
-		print("input_volumes_32_shape" , input_volumes_32.shape)   #input_volumes_32_shape (?,32,32,32,1)
+            print("input_volumes_32_shape" , input_volumes_32.shape)   #input_volumes_32_shape (?,32,32,32,1)
 	
-		rn1=Conv3D(filters=32, kernel_size=(4, 4, 4), padding='same',data_format="channels_last",name='ref_c1')(input_volumes_32)
-		rn2=BatchNormalization()(rn1)
-		rn3=LeakyReLU(alpha=.2)(rn2)
-		volumes_16_l =MaxPooling3D(pool_size=(2, 2, 2),name='ref_m1')(rn3)
+            rn1=Conv3D(filters=32, kernel_size=(4, 4, 4), padding='same',data_format="channels_last",name='ref_c1')(input_volumes_32)
+            rn2=BatchNormalization()(rn1)
+            rn3=LeakyReLU(alpha=.2)(rn2)
+            volumes_16_l =MaxPooling3D(pool_size=(2, 2, 2),name='ref_m1')(rn3)
 	
-		print("volumes_16_l_shape" , volumes_16_l.shape)      #volumes_16_l_shape (?,16,16,16,32)
+            print("volumes_16_l_shape" , volumes_16_l.shape)      #volumes_16_l_shape (?,16,16,16,32)
 	
-		rn5=Conv3D(filters=64, kernel_size=(4, 4, 4), padding='same',data_format="channels_last",name='ref_c2')(volumes_16_l)
-		rn6=BatchNormalization()(rn5)
-		rn7=LeakyReLU(alpha=.2)(rn6)
-		volumes_8_l =MaxPooling3D(pool_size=(2, 2, 2),name='ref_m2')(rn7)
+            rn5=Conv3D(filters=64, kernel_size=(4, 4, 4), padding='same',data_format="channels_last",name='ref_c2')(volumes_16_l)
+            rn6=BatchNormalization()(rn5)
+            rn7=LeakyReLU(alpha=.2)(rn6)
+            volumes_8_l =MaxPooling3D(pool_size=(2, 2, 2),name='ref_m2')(rn7)
 		
-		print("volumes_8_l_shape" ,volumes_8_l.shape)
+            print("volumes_8_l_shape" ,volumes_8_l.shape)
 		
-		rn9=Conv3D(filters=128, kernel_size=(4, 4, 4), padding='same',data_format="channels_last",name='ref_c3')(volumes_8_l)
-		rn10=BatchNormalization()(rn9)
-		rn11=LeakyReLU(alpha=.2)(rn10)
-		volumes_4_l =MaxPooling3D(pool_size=(2, 2, 2),name='ref_m3')(rn11)
+            rn9=Conv3D(filters=128, kernel_size=(4, 4, 4), padding='same',data_format="channels_last",name='ref_c3')(volumes_8_l)
+            rn10=BatchNormalization()(rn9)
+            rn11=LeakyReLU(alpha=.2)(rn10)
+            volumes_4_l =MaxPooling3D(pool_size=(2, 2, 2),name='ref_m3')(rn11)
 		
-		print("volumes_4_l_shape" , volumes_4_l.shape)
+            print("volumes_4_l_shape" , volumes_4_l.shape)
 		
-		flatten_features=tf.reshape(volumes_4_l , [-1,8192],name="ref_fc1_in")   
-	with tf.variable_scope('ref_fc'):
+            flatten_features=tf.reshape(volumes_4_l , [-1,8192],name="ref_fc1_in")   
+        with tf.variable_scope('ref_fc'):
 		
-		fc1=Dense(units=2048, activation='relu',name='ref_fc1')(flatten_features)
-		fc1=relu(fc1, alpha=0.0, max_value=None, threshold=0.0)
+            fc1=Dense(units=2048, activation='relu',name='ref_fc1')(flatten_features)
+            fc1=tanh(fc1)
+            
+#            fc1=relu(fc1, alpha=0.0, max_value=None, threshold=0.0)
 		
-		print("fc1_shape",fc1.shape)
+            print("fc1_shape",fc1.shape)
 		
-		fc2=Dense(units=8192, activation='relu',name='ref_fc2')(fc1)
-		fc2=relu(fc2, alpha=0.0, max_value=None, threshold=0.0)
+            fc2=Dense(units=8192, activation='relu',name='ref_fc2')(fc1)
+            fc2=tanh(fc2)
+#            fc2=relu(fc2, alpha=0.0, max_value=None, threshold=0.0)
 		
-		print("fc2_shape",fc2.shape)
+            print("fc2_shape",fc2.shape)
 			
-		fc2=tf.reshape(fc2, [-1, 4,4,4,128],name="ref_fc2_out")     
+            fc2=tf.reshape(fc2, [-1, 4,4,4,128],name="ref_fc2_out")     
 		
-	with tf.variable_scope('ref_Dec'):
+        with tf.variable_scope('ref_Dec'):
 		
-		reshaped_1=Add()([fc2,volumes_4_l]) 
+            reshaped_1=Add()([fc2,volumes_4_l]) 
 		
-		print("reshaped_1.shape",reshaped_1.shape)
+            print("reshaped_1.shape",reshaped_1.shape)
 
-		rn13=Conv3DTranspose(filters=64, kernel_size=(4, 4, 4), padding='same',data_format="channels_last",name='ref_c4',strides=(2, 2, 2))(reshaped_1)
-#		rn13= tools.Ops.deconv3d(reshaped_1, k=4, out_c=64, str=2, name='ref_c4')
-		rn14=BatchNormalization()(rn13)
-		volumes_4_r=relu(rn14, alpha=0.0, max_value=None, threshold=0.0)
+            rn13=Conv3DTranspose(filters=64, kernel_size=(4, 4, 4), padding='same',data_format="channels_last",name='ref_d1',strides=(2, 2, 2))(reshaped_1)
+	
+            rn14=BatchNormalization()(rn13)
+            volumes_4_r=relu(rn14, alpha=0.0, max_value=None, threshold=0.0)
 		
-		print("volumes_4_r_shape",volumes_4_r.shape)
+            print("volumes_4_r_shape",volumes_4_r.shape)
 		
-		reshaped_2=Add() ([volumes_4_r,volumes_8_l]) 
+            reshaped_2=Add() ([volumes_4_r,volumes_8_l]) 
 		
-		print("reshaped_2_shape",reshaped_2.shape)
+            print("reshaped_2_shape",reshaped_2.shape)
 
-#		rn16= tools.Ops.deconv3d(reshaped_2, k=4, out_c=32, str=2, name='ref_c5')
-		rn16=Conv3DTranspose(filters=32, kernel_size=(4, 4, 4), padding='same',data_format="channels_last",name='ref_c5',strides=(2, 2, 2))(reshaped_2)
-		rn17=BatchNormalization()(rn16)
-		volumes_8_r =relu(rn17, alpha=0.0, max_value=None, threshold=0.0)
-	 
-		reshaped_3=Add()([volumes_8_r,volumes_16_l])
+	
+            rn16=Conv3DTranspose(filters=32, kernel_size=(4, 4, 4), padding='same',data_format="channels_last",name='ref_d2',strides=(2, 2, 2))(reshaped_2)
+            rn17=BatchNormalization()(rn16)
+            volumes_8_r =relu(rn17, alpha=0.0, max_value=None, threshold=0.0)
+		 
+            reshaped_3=Add()([volumes_8_r,volumes_16_l])
 		
-		print("reshaped_3_shape",reshaped_3.shape)
+            print("reshaped_3_shape",reshaped_3.shape)
 		
-#		rn19= tools.Ops.deconv3d(volumes_8_r, k=4, out_c=1, str=2, name='ref_c6')
-		rn19=Conv3DTranspose(filters=1, kernel_size=(4, 4, 4), padding='same',data_format="channels_last",name='ref_c6',strides=(2, 2, 2))(volumes_8_r)
-		volumes_16_r= tf.nn.sigmoid(rn19,name='ref_sigmoid1')
+	
+            rn19=Conv3DTranspose(filters=1, kernel_size=(4, 4, 4), padding='same',data_format="channels_last",name='ref_d3',strides=(2, 2, 2))(volumes_8_r)
+            print("rn19_shape",rn19.shape)
+#            volumes_16_r= tf.nn.sigmoid(rn19,name='ref_sigmoid1')
+#            reshape_4=volumes_16_r                             ####################
 
-		reshape_4=Add()([volumes_16_r,input_volumes_32])
-		reshape_4=(reshape_4*0.5)
-		reshape_4 = tf.nn.sigmoid(reshape_4,name="ref_sigmoid")
-
+            reshape_4=Add()([rn19,input_volumes_32])
+            reshape_4=(reshape_4*0.5)
+            print("reshape_4_5",reshape_4.shape)
+            
+            reshape_4= tf.nn.sigmoid(reshape_4,name='ref_sigmoid1')
+           
 		
-		print("reshape_4_shape",reshape_4.shape)
+            print("reshape_4_sig_shape",reshape_4.shape)
 		
-		reshape_5=tf.reshape(reshape_4, [-1, vox_res32, vox_res32, vox_res32],name="ref_out")
+            reshape_5=tf.reshape(reshape_4, [-1, vox_res32, vox_res32, vox_res32],name="ref_out")
 
-		return reshape_5
+            return reshape_5
 	
 def attsets_fc(x, out_ele_num):
 	with tf.variable_scope('att_fc'):
@@ -149,9 +158,9 @@ def attsets_fc(x, out_ele_num):
 		weights_1st = tools.Ops.fc(x_1st_tp, out_d=out_ele_num*out_ele_len, name="att")
 		
 		########## option 1
-		weights_1st = weights_1st
+		#weights_1st = weights_1st
 		########## option 2
-		#weights_1st = tf.nn.tanh(weights_1st)
+		weights_1st = tf.nn.tanh(weights_1st)
 
 		####################
 		weights_1st = tf.reshape(weights_1st, [-1, in_ele_num, out_ele_num, out_ele_len],name="att_fc_out")
@@ -258,9 +267,9 @@ class Network:
 			print("l7_r2n",l7.shape)
 			l8 = tools.Ops.xxlu(tools.Ops.conv2d(l7, k=3, out_c=en_c[3], str=1, name='en_c8'), label='lrelu')
 			print("l8_r2n",l8.shape)
-#			l66=tools.Ops.conv2d(l6, k=1, out_c=en_c[3], str=1, name='en_c66')
-#			print("l66_r2n",l66.shape)
-#			l8=l8+l66
+			l66=tools.Ops.conv2d(l6, k=1, out_c=en_c[3], str=1, name='en_c66')
+			print("l66_r2n",l66.shape)
+			l8=l8+l66
 			l8 = tools.Ops.maxpool2d(l8, k=2, s=2, name='en_mp4')
 			print("l8_r2n",l8.shape)
 
@@ -347,13 +356,20 @@ class Network:
 
 			d11 = tools.Ops.deconv3d(d8, k=3, out_c=de_c[5], str=1, name='de_c9')
 			print("d11_out_r2n",d11.shape)
+			
+			ref_in = tf.reshape(d11, [-1, vox_res32, vox_res32, vox_res32],name="ref_in")     ###
+			
 			y = tf.nn.sigmoid(d11,name='de_sigmoid')
 
-			xy = tf.reshape(y, [-1, vox_res32, vox_res32, vox_res32],name="de_out")
-			print("xy_out_r2n",xy.shape)
+			att_o = tf.reshape(y, [-1, vox_res32, vox_res32, vox_res32],name="de_out")
+			
+			print("att_out_shape",att_o.shape)
+			
 		with tf.variable_scope('ref_net'):
-			xyz=refiner_network(xy)
-			return xyz,xy, weights
+		
+			ref_o=refiner_network(ref_in)
+			
+			return ref_o,att_o, weights
 
 	def build_graph(self):
 		img_res = 127
@@ -361,12 +377,11 @@ class Network:
 		self.X_rgb = tf.placeholder(shape=[None, None, img_res, img_res, 3], dtype=tf.float32)
 		self.Y_vox = tf.placeholder(shape=[None, vox_res, vox_res, vox_res], dtype=tf.float32)
 		self.lr = tf.placeholder(tf.float32)
+		self.refine_lr = tf.placeholder(tf.float32)
 		with tf.device('/gpu:' + GPU0):
 			self.Y_pred,self.vae_o, self.weights = self.base_r2n2(self.X_rgb)
 			tf.summary.histogram('Attsets_Weights', self.weights)
-		#for d in['0', '1'] 
-		#    with tf.device('/gpu:' + d):
-	        #with tf.device('/gpu:' + GPU1):	
+		with tf.device('/gpu:' + GPU1):	
 			### rec loss
 			print ("reached")
 			with tf.variable_scope('Loss_Fun'):
@@ -374,7 +389,7 @@ class Network:
 				Y_pred_ = tf.reshape(self.Y_pred, shape=[-1, vox_res ** 3])
 				vae_o_=tf.reshape(self.vae_o, shape=[-1, vox_res ** 3])
 			
-				self.vae_loss= tf.reduce_mean(-tf.reduce_mean(Y_vox_ * tf.log(vae_o_ + 1e-8), reduction_indices=[1]) -
+				self.vae_loss = tf.reduce_mean(-tf.reduce_mean(Y_vox_ * tf.log(vae_o_ + 1e-8), reduction_indices=[1]) -
 										 tf.reduce_mean((1 - Y_vox_) * tf.log(1 - vae_o_ + 1e-8),reduction_indices=[1]))
 				self.rec_loss = tf.reduce_mean(-tf.reduce_mean(Y_vox_ * tf.log(Y_pred_ + 1e-8), reduction_indices=[1]) -
 										 tf.reduce_mean((1 - Y_vox_) * tf.log(1 - Y_pred_ + 1e-8),reduction_indices=[1]))
@@ -387,23 +402,26 @@ class Network:
 				base_en_var = [var for var in tf.trainable_variables() if var.name.startswith('Encoder/en')]
 				base_dec_var = [var for var in tf.trainable_variables() if var.name.startswith('Decoder/de')]
 				att_var = [var for var in tf.trainable_variables() if var.name.startswith('Att_Net/att')]
-				refine_var = [var for var in tf.trainable_variables() if var.name.startswith('ref_net/ref')]
+				refine_var = [var for var in tf.trainable_variables() if var.name.startswith('ref')]
+#				refine_de  = [var for var in tf.trainable_variables() if var.name.startswith('ref_net/ref_Dec/ref')]
 				
 #				self.base_en_optim = tf.train.AdamOptimizer(learning_rate=self.lr).minimize(self.rec_loss, var_list=base_en_var)
 #				self.base_de_optim = tf.train.AdamOptimizer(learning_rate=self.lr).minimize(self.rec_loss, var_list=base_dec_var)
 #				self.att_optim = tf.train.AdamOptimizer(learning_rate=self.lr).minimize(self.rec_loss, var_list=att_var)
-				self.refine_optim = tf.train.AdamOptimizer(learning_rate=0.0001).minimize(self.rec_loss, var_list=refine_var)
+				self.refine_optim = tf.train.AdamOptimizer(learning_rate=self.refine_lr).minimize(self.rec_loss, var_list=refine_var)
 				
 				self.base_en_optim2 = tf.train.AdamOptimizer(learning_rate=self.lr).minimize(self.vae_loss, var_list=base_en_var)
 				self.base_de_optim2 = tf.train.AdamOptimizer(learning_rate=self.lr).minimize(self.vae_loss, var_list=base_dec_var)
 				self.att_optim2 = tf.train.AdamOptimizer(learning_rate=self.lr).minimize(self.vae_loss, var_list=att_var)
+#				self.refine_optim_de2 = tf.train.AdamOptimizer(learning_rate=0.001).minimize(self.vae_loss, var_list=refine_de)
 				
 				
 		
 		print ("total weights:",tools.Ops.variable_count())
 		self.saver = tf.train.Saver(max_to_keep=1)
 		config = tf.ConfigProto(allow_soft_placement=True)
-		config.gpu_options.visible_device_list = GPU0
+		config.gpu_options.allow_growth = True
+		config.gpu_options.visible_device_list = '0,1'
 		self.sess = tf.Session(config=config)
 		self.merged = tf.summary.merge_all()
 		self.sum_writer_train = tf.summary.FileWriter(self.train_sum_dir, self.sess.graph)
@@ -445,7 +463,16 @@ class Network:
 				##### optiion 2: joint train, seperate optimize
 				single_view_train = True
 				multi_view_train = True
-
+				
+				if epoch <= 5:
+					att_lr=.0003
+					ref_lr=.0003
+				if epoch > 5 and epoch <= 10:
+					att_lr=.0002
+					ref_lr=.0002
+				if epoch > 10:
+					att_lr=.0001
+					ref_lr=.0001 
 				###########  single view train
 				if single_view_train:
 					
@@ -453,14 +480,14 @@ class Network:
 					print("single_view_train_rgb_input_shape ",rgb.shape)
 					vox = np.tile(Y_vox_bat[:,None,:,:,:],[1,train_view_num,1,1,1])
 					vox = np.reshape(vox, [batch_size*train_view_num, 32,32,32])	
-					vae_loss_c,eee,ddd, rec_loss_c, sum_train,rrr = self.sess.run([self.vae_loss,self.base_en_optim2,self.base_de_optim2,self.rec_loss,self.merged,self.refine_optim],feed_dict={self.X_rgb: rgb, self.Y_vox: vox, self.lr: 0.0001})
+					vae_loss_c,eee,ddd, rec_loss_c, sum_train,rrr = self.sess.run([self.vae_loss,self.base_en_optim2,self.base_de_optim2,self.rec_loss,self.merged,self.refine_optim],feed_dict={self.X_rgb: rgb, self.Y_vox: vox, self.lr: att_lr,self.refine_lr: ref_lr})
 					print ('ep:', epoch, 'i:', i, 'train single rec loss:', rec_loss_c)
 					print('ep:',epoch,'i',i,'train single vae loss',vae_loss_c)
                                         									
 				########## multi view train
 				if multi_view_train:
 					
-					vae_loss_c,rec_loss_c, _, sum_train,xxx = self.sess.run([self.vae_loss,self.rec_loss, self.att_optim2, self.merged,self.refine_optim],feed_dict={self.X_rgb: X_rgb_bat, self.Y_vox: Y_vox_bat,self.lr: 0.0001})
+					vae_loss_c,rec_loss_c, _, sum_train,xxx = self.sess.run([self.vae_loss,self.rec_loss, self.att_optim2, self.merged,self.refine_optim],feed_dict={self.X_rgb: X_rgb_bat, self.Y_vox: Y_vox_bat,self.lr: att_lr,self.refine_lr: ref_lr})
 					print ('ep:', epoch, 'i:', i, 'train multi rec loss:', rec_loss_c)
 					print('ep:',epoch,'i',i,'train multi vae loss',vae_loss_c)
                                         				
@@ -473,7 +500,7 @@ class Network:
 				if i % 50 == 0 :
 					X_rgb_batch, Y_vox_batch = data.load_X_Y_test_next_batch(test_mv=3)
 					bbbb,dddd,rrrr,aaaa,rec_loss_te, qwerty, Y_vox_test_pred, att_pred, sum_test = \
-						self.sess.run([self.base_en_optim2,self.base_de_optim2,self.refine_optim,self.att_optim2,self.rec_loss,self.vae_loss, self.Y_pred,self.weights, self.merged],feed_dict={self.X_rgb: X_rgb_batch, self.Y_vox: Y_vox_batch,self.lr: 0.0001})
+						self.sess.run([self.base_en_optim2,self.base_de_optim2,self.refine_optim,self.att_optim2,self.rec_loss,self.vae_loss, self.Y_pred,self.weights, self.merged],feed_dict={self.X_rgb: X_rgb_batch, self.Y_vox: Y_vox_batch,self.lr: att_lr,self.refine_lr: ref_lr})
 					X_rgb_batch = X_rgb_batch.astype(np.float16)
 					Y_vox_batch = Y_vox_batch.astype(np.float16)
 					Y_vox_test_pred = Y_vox_test_pred.astype(np.float16)
@@ -488,9 +515,9 @@ class Network:
 				if i % 100 == 0 :
 					self.saver.save( self.sess, save_path=self.train_mod_dir + 'model.cptk' )
 					print ( 'epoch:', epoch, 'i:', i, 'model saved!' )
-  
-#				summary = self.sess.run(self.merged)                          
-#				self.sum_writer_test.add_summary(summary,i)				
+				
+
+									
 
 ##########
 if __name__ =='__main__':
