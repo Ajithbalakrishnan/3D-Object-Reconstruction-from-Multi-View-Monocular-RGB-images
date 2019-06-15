@@ -47,8 +47,8 @@ def load_real_rgbs(test_mv=test_views):
     return x_sample, None
 
 def load_shapenet_rgbs(test_mv=test_views):
-    obj_rgbs_folder = './Data_sample/ShapeNetRendering/03211117/1a92ca1592aefb2f9531a714ad5bf7d5/rendering/'
-    obj_gt_vox_path ='./Data_sample/ShapeNetVox32/03211117/1a92ca1592aefb2f9531a714ad5bf7d5/model.binvox'
+    obj_rgbs_folder = './Data_sample/ShapeNetRendering/02691156/1a04e3eab45ca15dd86060f189eb133/rendering/'
+    obj_gt_vox_path ='./Data_sample/ShapeNetVox32/02691156/1a04e3eab45ca15dd86060f189eb133/model.binvox'
     rgbs=[]
     rgbs_views = sorted(os.listdir(obj_rgbs_folder))
     for v in rgbs_views:
@@ -64,22 +64,26 @@ def load_shapenet_rgbs(test_mv=test_views):
     return x_sample, Y_true_vox
     #########################################
 def ttest_demo():
-#    model_path = './Model_released/'
-    model_path = './train_mod/'
+    model_path = './Model_released/'
+    
+#    model_path = './train_mod/'
     if not os.path.isfile(model_path + 'model.cptk.data-00000-of-00001'):
         print ('please download our released model first!')
         return
 
     config = tf.ConfigProto(allow_soft_placement=True)
-    config.gpu_options.visible_device_list = GPU
+    config.gpu_options.visible_device_list = '0,1'
     with tf.Session(config=config) as sess:
         saver = tf.train.import_meta_graph(model_path + 'model.cptk.meta', clear_devices=True)
         saver.restore(sess, model_path + 'model.cptk')
         print ('model restored!')
 
         X = tf.get_default_graph().get_tensor_by_name("Placeholder:0")
-        Y_pred = tf.get_default_graph().get_tensor_by_name("r2n/Reshape_7:0")
+#        Y_pred = tf.get_default_graph().get_tensor_by_name("r2n/Reshape_7:0")
+#        Y_pred = tf.get_default_graph().get_tensor_by_name("ref_net/ref_Dec/ref_out:0")
+        Y_pred = tf.get_default_graph().get_tensor_by_name("Decoder/de_out:0")
         
+        print("Y_pred_shape",Y_pred.shape)
 
 #        x_sample, gt_vox = load_real_rgbs()
         x_sample, gt_vox = load_shapenet_rgbs()
@@ -108,8 +112,8 @@ def ttest_demo():
         iou_=evaluate_voxel_prediction(y_pred_,gt_vox1)
         print("evaluate_voxel_prediction:",iou_)
 		
-        iou_value= metric_IoU( y_pred,gt_vox1)
-        print("metric_IoU :",iou_value)		                     
+#        iou_value= metric_IoU( y_pred,gt_vox1)
+#        print("metric_IoU :",iou_value)		                     
         
 #        y_pred= sess.run(Y_pred, feed_dict={X: x_sample})             
     ###### to visualize
@@ -124,4 +128,5 @@ def ttest_demo():
 
 #########################
 if __name__ == '__main__':
+#    with tf.device('/gpu:' + GPU1):
     ttest_demo()
