@@ -32,7 +32,7 @@ multi_view_train = True
 config={}                                 # python dictionary
 config['batch_size'] = batch_size
 config['total_mv'] = total_mv
-config['cat_names'] = ['02691156']
+config['cat_names'] = ['03636649']
 #config['cat_names'] = ['02691156','02828884','02933112','02958343','03001627','03211117',
 #            '03636649','03691459','04090263','04256520','04379243','04401088','04530566']
 #config['cat_names'] = ['02828884']
@@ -87,15 +87,15 @@ def refiner_network(volumes_in):
         with tf.variable_scope('ref_fc'):
 		
             fc1=Dense(units=2048, activation='relu',name='ref_fc1')(flatten_features)
-            fc1=tanh(fc1)
+#            fc1=tanh(fc1)
             
-#            fc1=relu(fc1, alpha=0.0, max_value=None, threshold=0.0)
+            fc1=relu(fc1, alpha=0.0, max_value=None, threshold=0.0)
 		
             print("fc1_shape",fc1.shape)
 		
             fc2=Dense(units=8192, activation='relu',name='ref_fc2')(fc1)
-            fc2=tanh(fc2)
-#            fc2=relu(fc2, alpha=0.0, max_value=None, threshold=0.0)
+#            fc2=tanh(fc2)
+            fc2=relu(fc2, alpha=0.0, max_value=None, threshold=0.0)
 		
             print("fc2_shape",fc2.shape)
 			
@@ -158,9 +158,9 @@ def attsets_fc(x, out_ele_num):
 		weights_1st = tools.Ops.fc(x_1st_tp, out_d=out_ele_num*out_ele_len, name="att")
 		
 		########## option 1
-		#weights_1st = weights_1st
+		weights_1st = weights_1st
 		########## option 2
-		weights_1st = tf.nn.tanh(weights_1st)
+#		weights_1st = tf.nn.tanh(weights_1st)
 
 		####################
 		weights_1st = tf.reshape(weights_1st, [-1, in_ele_num, out_ele_num, out_ele_len],name="att_fc_out")
@@ -267,9 +267,9 @@ class Network:
 			print("l7_r2n",l7.shape)
 			l8 = tools.Ops.xxlu(tools.Ops.conv2d(l7, k=3, out_c=en_c[3], str=1, name='en_c8'), label='lrelu')
 			print("l8_r2n",l8.shape)
-			l66=tools.Ops.conv2d(l6, k=1, out_c=en_c[3], str=1, name='en_c66')
-			print("l66_r2n",l66.shape)
-			l8=l8+l66
+#			l66=tools.Ops.conv2d(l6, k=1, out_c=en_c[3], str=1, name='en_c66')
+#			print("l66_r2n",l66.shape)
+#			l8=l8+l66
 			l8 = tools.Ops.maxpool2d(l8, k=2, s=2, name='en_mp4')
 			print("l8_r2n",l8.shape)
 
@@ -397,23 +397,21 @@ class Network:
 				self.sum_merged = sum_rec_loss
 				tf.summary.histogram('rec_loss', self.rec_loss)
 				tf.summary.scalar("vae-loss",self.vae_loss)
-				tf.summary.histogram("vae-loss",self.vae_loss)
+				tf.summary.histogram("vae_loss",self.vae_loss)
+				self.mean_loss = tf.div(x=tf.math.add(x=self.vae_loss,y=self.rec_loss,name='add_loss'),y=2,name='mean_loss')
+				tf.summary.histogram("mean_vae_loss",self.mean_loss)
+				tf.summary.scalar("mean_vae_loss",self.mean_loss)
 								 
 				base_en_var = [var for var in tf.trainable_variables() if var.name.startswith('Encoder/en')]
 				base_dec_var = [var for var in tf.trainable_variables() if var.name.startswith('Decoder/de')]
 				att_var = [var for var in tf.trainable_variables() if var.name.startswith('Att_Net/att')]
-				refine_var = [var for var in tf.trainable_variables() if var.name.startswith('ref')]
-#				refine_de  = [var for var in tf.trainable_variables() if var.name.startswith('ref_net/ref_Dec/ref')]
-				
-#				self.base_en_optim = tf.train.AdamOptimizer(learning_rate=self.lr).minimize(self.rec_loss, var_list=base_en_var)
-#				self.base_de_optim = tf.train.AdamOptimizer(learning_rate=self.lr).minimize(self.rec_loss, var_list=base_dec_var)
-#				self.att_optim = tf.train.AdamOptimizer(learning_rate=self.lr).minimize(self.rec_loss, var_list=att_var)
-				self.refine_optim = tf.train.AdamOptimizer(learning_rate=self.refine_lr).minimize(self.rec_loss, var_list=refine_var)
-				
-				self.base_en_optim2 = tf.train.AdamOptimizer(learning_rate=self.lr).minimize(self.vae_loss, var_list=base_en_var)
-				self.base_de_optim2 = tf.train.AdamOptimizer(learning_rate=self.lr).minimize(self.vae_loss, var_list=base_dec_var)
-				self.att_optim2 = tf.train.AdamOptimizer(learning_rate=self.lr).minimize(self.vae_loss, var_list=att_var)
-#				self.refine_optim_de2 = tf.train.AdamOptimizer(learning_rate=0.001).minimize(self.vae_loss, var_list=refine_de)
+				refine_var = [var for var in tf.trainable_variables() if var.name.startswith('ref_net/ref')]
+
+				self.refine_optim = tf.train.AdamOptimizer(learning_rate=self.refine_lr).minimize(self.rec_loss, var_list=refine_var)				
+				self.base_en_optim2 = tf.train.AdamOptimizer(learning_rate=self.lr).minimize(self.mean_loss, var_list=base_en_var)
+				self.base_de_optim2 = tf.train.AdamOptimizer(learning_rate=self.lr).minimize(self.mean_loss, var_list=base_dec_var)
+				self.att_optim2 = tf.train.AdamOptimizer(learning_rate=self.lr).minimize(self.mean_loss, var_list=att_var)
+
 				
 				
 		
@@ -465,14 +463,14 @@ class Network:
 				multi_view_train = True
 				
 				if epoch <= 5:
-					att_lr=.0003
-					ref_lr=.0003
-				if epoch > 5 and epoch <= 10:
 					att_lr=.0002
 					ref_lr=.0002
-				if epoch > 10:
+				if epoch > 5 and epoch <= 50:
 					att_lr=.0001
-					ref_lr=.0001 
+					ref_lr=.0001
+				if epoch > 50:
+					att_lr=.00005
+					ref_lr=.00005 
 				###########  single view train
 				if single_view_train:
 					
@@ -480,16 +478,19 @@ class Network:
 					print("single_view_train_rgb_input_shape ",rgb.shape)
 					vox = np.tile(Y_vox_bat[:,None,:,:,:],[1,train_view_num,1,1,1])
 					vox = np.reshape(vox, [batch_size*train_view_num, 32,32,32])	
-					vae_loss_c,eee,ddd, rec_loss_c, sum_train,rrr = self.sess.run([self.vae_loss,self.base_en_optim2,self.base_de_optim2,self.rec_loss,self.merged,self.refine_optim],feed_dict={self.X_rgb: rgb, self.Y_vox: vox, self.lr: att_lr,self.refine_lr: ref_lr})
+					vae_loss_c,eee,ddd, rec_loss_c, sum_train,rrr,mean_vae = self.sess.run([self.vae_loss,self.base_en_optim2,self.base_de_optim2,self.rec_loss,self.merged,self.refine_optim,self.mean_loss],feed_dict={self.X_rgb: rgb, self.Y_vox: vox, self.lr: att_lr,self.refine_lr: ref_lr})
 					print ('ep:', epoch, 'i:', i, 'train single rec loss:', rec_loss_c)
-					print('ep:',epoch,'i',i,'train single vae loss',vae_loss_c)
+					print ('ep:', epoch, 'i:', i, 'train multi vae loss:', vae_loss_c)
+					print ('ep:', epoch, 'i:', i, 'train single mean_vae loss:',mean_vae)
+					
                                         									
 				########## multi view train
 				if multi_view_train:
 					
-					vae_loss_c,rec_loss_c, _, sum_train,xxx = self.sess.run([self.vae_loss,self.rec_loss, self.att_optim2, self.merged,self.refine_optim],feed_dict={self.X_rgb: X_rgb_bat, self.Y_vox: Y_vox_bat,self.lr: att_lr,self.refine_lr: ref_lr})
+					vae_loss_c,rec_loss_c, _, sum_train,xxx,mean_vae = self.sess.run([self.vae_loss,self.rec_loss, self.att_optim2, self.merged,self.refine_optim,self.mean_loss],feed_dict={self.X_rgb: X_rgb_bat, self.Y_vox: Y_vox_bat,self.lr: att_lr,self.refine_lr: ref_lr})
 					print ('ep:', epoch, 'i:', i, 'train multi rec loss:', rec_loss_c)
-					print('ep:',epoch,'i',i,'train multi vae loss',vae_loss_c)
+					print ('ep:', epoch, 'i:', i, 'train multi vae loss:', vae_loss_c)
+					print('ep:',epoch,'i',i,'train multi mean_vae loss:',mean_vae)
                                         				
 				############
 				if i % 10 == 0:
@@ -498,9 +499,9 @@ class Network:
 				
 				#### testing
 				if i % 50 == 0 :
-					X_rgb_batch, Y_vox_batch = data.load_X_Y_test_next_batch(test_mv=3)
-					bbbb,dddd,rrrr,aaaa,rec_loss_te, qwerty, Y_vox_test_pred, att_pred, sum_test = \
-						self.sess.run([self.base_en_optim2,self.base_de_optim2,self.refine_optim,self.att_optim2,self.rec_loss,self.vae_loss, self.Y_pred,self.weights, self.merged],feed_dict={self.X_rgb: X_rgb_batch, self.Y_vox: Y_vox_batch,self.lr: att_lr,self.refine_lr: ref_lr})
+					X_rgb_batch, Y_vox_batch = data.load_X_Y_test_next_batch(test_mv=2)
+					rrrr,aaaa,rec_loss_te, qwerty, Y_vox_test_pred, att_pred, sum_test,mean_vae = \
+						self.sess.run([self.refine_optim,self.att_optim2,self.rec_loss,self.vae_loss, self.Y_pred,self.weights, self.merged,self.mean_loss],feed_dict={self.X_rgb: X_rgb_batch, self.Y_vox: Y_vox_batch,self.lr: att_lr,self.refine_lr: ref_lr})
 					X_rgb_batch = X_rgb_batch.astype(np.float16)
 					Y_vox_batch = Y_vox_batch.astype(np.float16)
 					Y_vox_test_pred = Y_vox_test_pred.astype(np.float16)
@@ -508,8 +509,10 @@ class Network:
 					to_save = {'X_test':X_rgb_batch,'Y_test_pred':Y_vox_test_pred,'att_pred':att_pred,'Y_test_true':Y_vox_batch}
 					scipy.io.savemat(self.test_res_dir+'X_Y_pred_'+str(epoch).zfill(2)+'_'+str(i).zfill(5)+'.mat',to_save,do_compression=True)
 					self.sum_writer_test.add_summary(sum_test, epoch * total_train_batch_num + i)
+					self.sum_writer_train.add_summary(sum_test, epoch * total_train_batch_num + i)
 					print ('ep:', epoch, 'i:', i, 'test rec loss:', rec_loss_te)
-					print ('ep:', epoch, 'i:', i, 'test vae loss:', qwerty) 
+					print ('ep:', epoch, 'i:', i, 'test vae loss:', qwerty )
+					print ('ep:', epoch, 'i:', i, 'test mean_vae loss:', mean_vae) 
 					
 				#### model saving
 				if i % 100 == 0 :
