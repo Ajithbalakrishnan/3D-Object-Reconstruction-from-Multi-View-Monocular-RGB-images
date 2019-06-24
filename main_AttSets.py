@@ -500,6 +500,8 @@ class Network:
 				#### testing
 				if i % 50 == 0 :
 					X_rgb_batch, Y_vox_batch = data.load_X_Y_test_next_batch(test_mv=2)
+					
+
 					rrrr,aaaa,rec_loss_te, qwerty, Y_vox_test_pred, att_pred, sum_test,mean_vae = \
 						self.sess.run([self.refine_optim,self.att_optim2,self.rec_loss,self.vae_loss, self.Y_pred,self.weights, self.merged,self.mean_loss],feed_dict={self.X_rgb: X_rgb_batch, self.Y_vox: Y_vox_batch,self.lr: att_lr,self.refine_lr: ref_lr})
 					X_rgb_batch = X_rgb_batch.astype(np.float16)
