@@ -95,6 +95,8 @@ def ttest_demo():
         Y_vox_ = tf.reshape(gt_vox1, shape=[-1, vox_res ** 3])
         Y_pred_ = tf.reshape(Y_pred, shape=[-1, vox_res ** 3])
         rec_loss=tf.reduce_mean(-tf.reduce_mean(Y_vox_*tf.log(Y_pred_ + 1e-8),reduction_indices=[1])-tf.reduce_mean((1-Y_vox_)*tf.log(1 - Y_pred_+1e-8),reduction_indices=[1]))
+
+	
         
                                 #########################################################
         ## session run
