@@ -32,25 +32,38 @@ multi_view_train = True
 
 plot_list_iou = []
 plot_list_i = []
+iii=0
 config={}                                 # python dictionary
 config['batch_size'] = batch_size
 config['total_mv'] = total_mv
-config['cat_names'] = ['02828884']
+config['cat_names'] = ['02828884','04530566','03636649']
 #config['cat_names'] = ['02691156','02828884','02933112','02958343','03001627','03211117',
 #            '03636649','03691459','04090263','04256520','04379243','04401088','04530566']
 #config['cat_names'] = ['02828884']
 for name in config['cat_names']:
-    config['X_rgb_'+name] = './Data_sample/ShapeNetRendering/'+name+'/'
-    config['Y_vox_'+name] = './Data_sample/ShapeNetVox32/'+name+'/'
+    config['X_rgb_'+name] = '/home/gpu/Desktop/Ajith_Balakrishnan/Data_sample/ShapeNetRendering/'+name+'/'
+    config['Y_vox_'+name] = '/home/gpu/Desktop/Ajith_Balakrishnan/Data_sample/ShapeNetVox32/'+name+'/'
 
 # output : {'batch_size': 1, 'total_mv': 24, 'cat_names': ['03001627'], 'Y_vox_03001627': '/home/wiproec4/3d reconstruction/attsets/Data_sample/#ShapeNetVox32/03001627/', 'X_rgb_03001627': '/home/wiproec4/3d reconstruction/attsets/Data_sample/ShapeNetRendering/03001627/'}
+
+def metric_iou(prediction, gt):
+#    labels = tf.greater_equal(gt[gt], 0.5)
+#    prediction = tf.cast(prediction,tf.int32)
+    predictions = tf.greater_equal(prediction, 0.5)
+    gt_=tf.greater_equal(gt, 0.5)
+    intersection = tf.reduce_sum(tf.cast(tf.logical_and(predictions,gt_),tf.float32))
+    union = tf.reduce_sum(tf.cast(tf.math.logical_or(predictions,gt_),tf.float32))
+    iou = tf.cast(x = intersection,dtype=tf.float32)/ tf.cast(x = union,dtype=tf.float32)
+    return iou
+
+
 def graph_plot(iou_value,i_value):
     x = i_value
     y = iou_value
     plt.plot(x, y, color='green', linestyle='dashed', linewidth = 3, marker='o', markerfacecolor='blue', markersize=12) 
     
     plt.ylim(0,2) 
-    plt.xlim(0,8) 
+    plt.xlim(0,500) 
  
     plt.xlabel('Iterations') 
 
@@ -58,19 +71,9 @@ def graph_plot(iou_value,i_value):
   
     plt.title('Refiner Accuracy') 
   
-#    plt.show() 
+    plt.show() 
          
-def metric_IoU(batch_voxel_occup_pred, batch_voxel_occup_true):
-    batch_voxel_occup_pred_ = copy.deepcopy(batch_voxel_occup_pred)
-    batch_voxel_occup_pred_[batch_voxel_occup_pred_ >= 0.5] = 1
-    batch_voxel_occup_pred_[batch_voxel_occup_pred_ < 0.5] = 0
-	
-    I = batch_voxel_occup_pred_ * batch_voxel_occup_true
-    U = batch_voxel_occup_pred_ + batch_voxel_occup_true			
-    U[U < 1] = 0
-    U[U >= 1] = 1
-    iou = np.sum(I) * 1.0 / np.sum(U) * 1.0
-    return iou
+
 def evaluate_voxel_prediction(prediction, gt):
   #"""  The prediction and gt are 3 dim voxels. Each voxel has values 1 or 0"""
     prediction[prediction >= 0.5] = 1
@@ -427,19 +430,25 @@ class Network:
 				self.mean_loss = tf.div(x=tf.math.add(x=self.vae_loss,y=self.rec_loss,name='add_loss'),y=2,name='mean_loss')
 				tf.summary.histogram("mean_vae_loss",self.mean_loss)
 				tf.summary.scalar("mean_vae_loss",self.mean_loss)
-								 
-				base_en_var = [var for var in tf.trainable_variables() if var.name.startswith('Encoder/en')]
-				base_dec_var = [var for var in tf.trainable_variables() if var.name.startswith('Decoder/de')]
-				att_var = [var for var in tf.trainable_variables() if var.name.startswith('Att_Net/att')]
-				refine_var = [var for var in tf.trainable_variables() if var.name.startswith('ref_net/ref')]
-
-				self.refine_optim = tf.train.AdamOptimizer(learning_rate=self.refine_lr).minimize(self.rec_loss, var_list=refine_var)				
-				self.base_en_optim2 = tf.train.AdamOptimizer(learning_rate=self.lr).minimize(self.vae_loss, var_list=base_en_var)
-				self.base_de_optim2 = tf.train.AdamOptimizer(learning_rate=self.lr).minimize(self.vae_loss, var_list=base_dec_var)
-				self.att_optim2 = tf.train.AdamOptimizer(learning_rate=self.lr).minimize(self.vae_loss, var_list=att_var)
-
 				
-				
+			with tf.variable_scope('Evaluation_Metric'):			    
+                		gt_vox=Y_vox_
+                		self.iou_ref = metric_iou(Y_pred_,gt_vox)
+                		tf.summary.scalar('iou_refiner', self.iou_ref)
+                		tf.summary.histogram('iou_refiner', self.iou_ref)
+                		self.iou_vae = metric_iou(vae_o_,gt_vox)
+                		tf.summary.scalar('iou_vae', self.iou_vae)
+                		tf.summary.histogram("iou_vae",self.iou_vae)
+
+                		base_en_var = [var for var in tf.trainable_variables() if var.name.startswith('Encoder/en')]
+                		base_dec_var = [var for var in tf.trainable_variables() if var.name.startswith('Decoder/de')]
+                		att_var = [var for var in tf.trainable_variables() if var.name.startswith('Att_Net/att')]
+                		refine_var = [var for var in tf.trainable_variables() if var.name.startswith('ref_net/ref')]
+                		self.refine_optim = tf.train.AdamOptimizer(learning_rate=self.refine_lr).minimize(self.rec_loss, var_list=refine_var)
+                		self.base_en_optim2 = tf.train.AdamOptimizer(learning_rate=self.lr).minimize(self.vae_loss, var_list=base_en_var)
+                		self.base_de_optim2 = tf.train.AdamOptimizer(learning_rate=self.lr).minimize(self.vae_loss, var_list=base_dec_var)
+                		self.att_optim2 = tf.train.AdamOptimizer(learning_rate=self.lr).minimize(self.vae_loss, var_list=att_var)
+			    				
 		
 		print ("total weights:",tools.Ops.variable_count())
 		self.saver = tf.train.Saver(max_to_keep=1)
@@ -504,19 +513,22 @@ class Network:
 					print("single_view_train_rgb_input_shape ",rgb.shape)
 					vox = np.tile(Y_vox_bat[:,None,:,:,:],[1,train_view_num,1,1,1])
 					vox = np.reshape(vox, [batch_size*train_view_num, 32,32,32])	
-					vae_loss_c,eee,ddd, rec_loss_c, sum_train,rrr,mean_vae = self.sess.run([self.vae_loss,self.base_en_optim2,self.base_de_optim2,self.rec_loss,self.merged,self.refine_optim,self.mean_loss],feed_dict={self.X_rgb: rgb, self.Y_vox: vox, self.lr: att_lr,self.refine_lr: ref_lr})
+					vae_loss_c,eee,ddd, rec_loss_c, sum_train,rrr,mean_vae,iou_ref_,iou_vae_ = self.sess.run([self.vae_loss,self.base_en_optim2,self.base_de_optim2,self.rec_loss,self.merged,self.refine_optim,self.mean_loss,self.iou_ref,self.iou_vae],feed_dict={self.X_rgb: rgb, self.Y_vox: vox, self.lr: att_lr,self.refine_lr: ref_lr})
 					print ('ep:', epoch, 'i:', i, 'train single rec loss:', rec_loss_c)
 					print ('ep:', epoch, 'i:', i, 'train single vae loss:', vae_loss_c)
 					print ('ep:', epoch, 'i:', i, 'train single mean_vae loss:',mean_vae)
-					
+					print ('ep:', epoch, 'i:', i, 'train single ref_iou:',iou_ref_)
+					print ('ep:', epoch, 'i:', i, 'train single vae_iou:',iou_vae_)
                                         									
 				########## multi view train
 				if multi_view_train:
 					
-					vae_loss_c,rec_loss_c, _, sum_train,xxx,mean_vae = self.sess.run([self.vae_loss,self.rec_loss, self.att_optim2, self.merged,self.refine_optim,self.mean_loss],feed_dict={self.X_rgb: X_rgb_bat, self.Y_vox: Y_vox_bat,self.lr: att_lr,self.refine_lr: ref_lr})
+					vae_loss_c,rec_loss_c, _, sum_train,xxx,mean_vae,iou_ref_,iou_vae_ = self.sess.run([self.vae_loss,self.rec_loss, self.att_optim2, self.merged,self.refine_optim,self.mean_loss,self.iou_ref,self.iou_vae],feed_dict={self.X_rgb: X_rgb_bat, self.Y_vox: Y_vox_bat,self.lr: att_lr,self.refine_lr: ref_lr})
 					print ('ep:', epoch, 'i:', i, 'train multi rec loss:', rec_loss_c)
 					print ('ep:', epoch, 'i:', i, 'train multi vae loss:', vae_loss_c)
 					print('ep:',epoch,'i',i,'train multi mean_vae loss:',mean_vae)
+					print ('ep:', epoch, 'i:', i, 'train multi ref_iou:',iou_ref_)
+					print ('ep:', epoch, 'i:', i, 'train multi vae_iou:',iou_vae_)
                                         				
 				############
 				if i % 10 == 0:
@@ -524,17 +536,21 @@ class Network:
 					
 				
 				#### testing
-				if i % 2 == 0 :
+				if i % 50 == 0 :
 					X_rgb_batch, Y_vox_batch = data.load_X_Y_test_next_batch(test_mv=3)
 					
-					vae_pred = tf.get_default_graph().get_tensor_by_name("Decoder/de_out:0")
-					ref_pred = tf.get_default_graph().get_tensor_by_name("ref_net/ref_Dec/ref_out:0")
+#					vae_pred = tf.get_default_graph().get_tensor_by_name("Decoder/de_out:0")
+#					ref_pred = tf.get_default_graph().get_tensor_by_name("ref_net/ref_Dec/ref_out:0")
+#					gt_vox=Y_vox_batch.astype(np.float32)
+					
+#					iou_pred = metric_iou(ref_pred,gt_vox)
+#					tf.summary.scalar("iou",iou_pred)
 
-					vae_pred_,ref_pred_,rrrr,aaaa,rec_loss_te, qwerty, Y_vox_test_pred, att_pred, sum_test,mean_vae = \
-						self.sess.run([vae_pred,ref_pred,self.refine_optim,self.att_optim2,self.rec_loss,self.vae_loss, self.Y_pred,self.weights, self.merged,self.mean_loss],feed_dict={self.X_rgb: X_rgb_batch, self.Y_vox: Y_vox_batch,self.lr: att_lr,self.refine_lr: ref_lr})
+					rrrr,aaaa,rec_loss_te, qwerty, Y_vox_test_pred, att_pred, sum_test,mean_vae,iou_ref_,iou_vae_ = \
+						self.sess.run([self.refine_optim,self.att_optim2,self.rec_loss,self.vae_loss, self.Y_pred,self.weights, self.merged,self.mean_loss,self.iou_ref,self.iou_vae],feed_dict={self.X_rgb: X_rgb_batch, self.Y_vox: Y_vox_batch,self.lr: att_lr,self.refine_lr: ref_lr})
 						
 					X_rgb_batch = X_rgb_batch.astype(np.float16)
-					gt_vox=Y_vox_batch.astype(np.float32)
+					
 					Y_vox_batch = Y_vox_batch.astype(np.float16)
 					Y_vox_test_pred = Y_vox_test_pred.astype(np.float16)
 					att_pred = att_pred.astype(np.float16)
@@ -544,24 +560,26 @@ class Network:
 					
 					self.sum_writer_test.add_summary(sum_test, epoch * total_train_batch_num + i)
 										
-					iou_ref=evaluate_voxel_prediction(ref_pred_,gt_vox)
-					iou_vae=evaluate_voxel_prediction(vae_pred_,gt_vox)
+#					iou_ref=evaluate_voxel_prediction(ref_pred_,gt_vox)
+#					iou_vae=evaluate_voxel_prediction(vae_pred_,gt_vox)
 					
-					print("Ref_iou:",iou_ref)
-					print("Vae_iou:",iou_vae)
+#					print("Ref_iou:",iou_ref)
+#					print("Vae_iou:",iou_vae)
 					
-					plot_list_iou.append(iou_ref)
-					plot_list_i.append(i)
-					graph_plot(plot_list_iou,plot_list_i)
+#					plot_list_iou.append(iou_ref)
+#					plot_list_i.append((i/50))
+#					graph_plot(plot_list_iou,plot_list_i)
 					print ('ep:', epoch, 'i:', i, 'test rec loss:', rec_loss_te)
 					print ('ep:', epoch, 'i:', i, 'test vae loss:', qwerty )
 					print ('ep:', epoch, 'i:', i, 'test mean_vae loss:', mean_vae) 
+					print ('ep:', epoch, 'i:', i, 'test ref_iou:',iou_ref_)
+					print ('ep:', epoch, 'i:', i, 'test vae_iou:',iou_vae_)
 					
 				#### model saving
 				if i % 100 == 0 :
 					self.saver.save( self.sess, save_path=self.train_mod_dir + 'model.cptk' )
 					print ( 'epoch:', epoch, 'i:', i, 'model saved!' )
-					plt.show()
+#					plt.show()
 				
 
 									
@@ -594,4 +612,5 @@ if __name__ =='__main__':
 	
 
 	
+
 
