@@ -439,6 +439,8 @@ class Network:
                 		self.iou_vae = metric_iou(vae_o_,gt_vox)
                 		tf.summary.scalar('iou_vae', self.iou_vae)
                 		tf.summary.histogram("iou_vae",self.iou_vae)
+                		
+			with tf.variable_scope('Optimization'):
 
                 		base_en_var = [var for var in tf.trainable_variables() if var.name.startswith('Encoder/en')]
                 		base_dec_var = [var for var in tf.trainable_variables() if var.name.startswith('Decoder/de')]
