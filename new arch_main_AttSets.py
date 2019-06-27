@@ -36,13 +36,13 @@ iii=0
 config={}                                 # python dictionary
 config['batch_size'] = batch_size
 config['total_mv'] = total_mv
-config['cat_names'] = ['02828884','04530566','03636649']
+config['cat_names'] = ['02828884']
 #config['cat_names'] = ['02691156','02828884','02933112','02958343','03001627','03211117',
 #            '03636649','03691459','04090263','04256520','04379243','04401088','04530566']
 #config['cat_names'] = ['02828884']
 for name in config['cat_names']:
-    config['X_rgb_'+name] = '/home/gpu/Desktop/Ajith_Balakrishnan/Data_sample/ShapeNetRendering/'+name+'/'
-    config['Y_vox_'+name] = '/home/gpu/Desktop/Ajith_Balakrishnan/Data_sample/ShapeNetVox32/'+name+'/'
+    config['X_rgb_'+name] = './Data_sample/ShapeNetRendering/'+name+'/'
+    config['Y_vox_'+name] = './Data_sample/ShapeNetVox32/'+name+'/'
 
 # output : {'batch_size': 1, 'total_mv': 24, 'cat_names': ['03001627'], 'Y_vox_03001627': '/home/wiproec4/3d reconstruction/attsets/Data_sample/#ShapeNetVox32/03001627/', 'X_rgb_03001627': '/home/wiproec4/3d reconstruction/attsets/Data_sample/ShapeNetRendering/03001627/'}
 
@@ -319,19 +319,19 @@ class Network:
 			l1010 = tools.Ops.conv2d(l10, k=1, out_c=en_c[5], str=1, name='en_c1010')
 			print("l1010_r2n",l1010.shape) #l1010_r2n (?, 4, 4, 256)
 			l12 = l12 + l1010
-			l12 = tools.Ops.maxpool2d(l12, k=2, s=2, name='en_mp6')
-			print("l12_r2n",l12.shape) #l12_r2n (?, 2, 2, 256)
+#			l12 = tools.Ops.maxpool2d(l12, k=2, s=2, name='en_mp6')
+#			print("l12_r2n",l12.shape) #l12_r2n (?, 2, 2, 256)
 			
 		
 			[_, d1, d2, cc] = l12.get_shape()
 			l12 = tf.reshape(l12, [-1, int(d1) * int(d2) * int(cc)],name="en_fc1_in")
 			print("fc1_input_r2n",l12.shape) #fc1_input_r2n (?, 1024)
-			fc = tools.Ops.xxlu(tools.Ops.fc(l12, out_d=1024, name='en_fc1'), label='lrelu')
+			fc = tools.Ops.xxlu(tools.Ops.fc(l12, out_d=4096, name='en_fc1'), label='lrelu')
 			print("fc1_output_r2n",fc.shape)#fc1_output_r2n (?, 1024)
 			
 		with tf.variable_scope('Att_Net'):	
 			#### use fc attention
-			input = tf.reshape(fc, [-1, im_num, 1024],name="Att_fc_in")
+			input = tf.reshape(fc, [-1, im_num, 4096],name="Att_fc_in")
 			print("att_fc_in_r2n",input.shape) #att_fc_in_r2n (?, ?, 1024)
 			latent_3d, weights = attsets_fc(input, out_ele_num=1)
 			print("att_fc_out_r2n",latent_3d.shape) #att_fc_out_r2n (?, 1024)
@@ -447,9 +447,9 @@ class Network:
                 		att_var = [var for var in tf.trainable_variables() if var.name.startswith('Att_Net/att')]
                 		refine_var = [var for var in tf.trainable_variables() if var.name.startswith('ref_net/ref')]
                 		self.refine_optim = tf.train.AdamOptimizer(learning_rate=self.refine_lr).minimize(self.rec_loss, var_list=refine_var)
-                		self.base_en_optim2 = tf.train.AdamOptimizer(learning_rate=self.lr).minimize(self.vae_loss, var_list=base_en_var)
-                		self.base_de_optim2 = tf.train.AdamOptimizer(learning_rate=self.lr).minimize(self.vae_loss, var_list=base_dec_var)
-                		self.att_optim2 = tf.train.AdamOptimizer(learning_rate=self.lr).minimize(self.vae_loss, var_list=att_var)
+                		self.base_en_optim2 = tf.train.AdamOptimizer(learning_rate=self.lr).minimize(self.mean_loss, var_list=base_en_var)
+                		self.base_de_optim2 = tf.train.AdamOptimizer(learning_rate=self.lr).minimize(self.mean_loss, var_list=base_dec_var)
+                		self.att_optim2 = tf.train.AdamOptimizer(learning_rate=self.lr).minimize(self.mean_loss, var_list=att_var)
 			    				
 		
 		print ("total weights:",tools.Ops.variable_count())
@@ -488,16 +488,16 @@ class Network:
 				print(time.ctime())
 				
 				##### option 1: seperate train, seperate optimize
-				#if epoch<=30:
-				#	single_view_train=True
-				#	multi_view_train=False
-				#else:
-				#	single_view_train=False
-				#	multi_view_train=True
+				if epoch<=30:
+					single_view_train=True
+					multi_view_train=False
+				else:
+					single_view_train=False
+					multi_view_train=True
 
 				##### optiion 2: joint train, seperate optimize
-				single_view_train = True
-				multi_view_train = True
+				#single_view_train = True
+				#multi_view_train = True
 				
 				if epoch <= 5:
 					att_lr=.0002
