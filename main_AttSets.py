@@ -32,25 +32,38 @@ multi_view_train = True
 
 plot_list_iou = []
 plot_list_i = []
+iii=0
 config={}                                 # python dictionary
 config['batch_size'] = batch_size
 config['total_mv'] = total_mv
-config['cat_names'] = ['02828884']
+config['cat_names'] = ['02828884','04530566','03636649']
 #config['cat_names'] = ['02691156','02828884','02933112','02958343','03001627','03211117',
 #            '03636649','03691459','04090263','04256520','04379243','04401088','04530566']
 #config['cat_names'] = ['02828884']
 for name in config['cat_names']:
-    config['X_rgb_'+name] = './Data_sample/ShapeNetRendering/'+name+'/'
-    config['Y_vox_'+name] = './Data_sample/ShapeNetVox32/'+name+'/'
+    config['X_rgb_'+name] = '/home/gpu/Desktop/Ajith_Balakrishnan/Data_sample/ShapeNetRendering/'+name+'/'
+    config['Y_vox_'+name] = '/home/gpu/Desktop/Ajith_Balakrishnan/Data_sample/ShapeNetVox32/'+name+'/'
 
 # output : {'batch_size': 1, 'total_mv': 24, 'cat_names': ['03001627'], 'Y_vox_03001627': '/home/wiproec4/3d reconstruction/attsets/Data_sample/#ShapeNetVox32/03001627/', 'X_rgb_03001627': '/home/wiproec4/3d reconstruction/attsets/Data_sample/ShapeNetRendering/03001627/'}
+
+def metric_iou(prediction, gt):
+#    labels = tf.greater_equal(gt[gt], 0.5)
+#    prediction = tf.cast(prediction,tf.int32)
+    predictions = tf.greater_equal(prediction, 0.5)
+    gt_=tf.greater_equal(gt, 0.5)
+    intersection = tf.reduce_sum(tf.cast(tf.logical_and(predictions,gt_),tf.float32))
+    union = tf.reduce_sum(tf.cast(tf.math.logical_or(predictions,gt_),tf.float32))
+    iou = tf.cast(x = intersection,dtype=tf.float32)/ tf.cast(x = union,dtype=tf.float32)
+    return iou
+
+
 def graph_plot(iou_value,i_value):
     x = i_value
     y = iou_value
     plt.plot(x, y, color='green', linestyle='dashed', linewidth = 3, marker='o', markerfacecolor='blue', markersize=12) 
     
     plt.ylim(0,2) 
-    plt.xlim(0,8) 
+    plt.xlim(0,500) 
  
     plt.xlabel('Iterations') 
 
@@ -58,19 +71,9 @@ def graph_plot(iou_value,i_value):
   
     plt.title('Refiner Accuracy') 
   
-#    plt.show() 
+    plt.show() 
          
-def metric_IoU(batch_voxel_occup_pred, batch_voxel_occup_true):
-    batch_voxel_occup_pred_ = copy.deepcopy(batch_voxel_occup_pred)
-    batch_voxel_occup_pred_[batch_voxel_occup_pred_ >= 0.5] = 1
-    batch_voxel_occup_pred_[batch_voxel_occup_pred_ < 0.5] = 0
-	
-    I = batch_voxel_occup_pred_ * batch_voxel_occup_true
-    U = batch_voxel_occup_pred_ + batch_voxel_occup_true			
-    U[U < 1] = 0
-    U[U >= 1] = 1
-    iou = np.sum(I) * 1.0 / np.sum(U) * 1.0
-    return iou
+
 def evaluate_voxel_prediction(prediction, gt):
   #"""  The prediction and gt are 3 dim voxels. Each voxel has values 1 or 0"""
     prediction[prediction >= 0.5] = 1
@@ -257,131 +260,131 @@ class Network:
 	def base_r2n2(self, X_rgb):
 		with tf.variable_scope('Encoder'):
 			im_num = tf.shape(X_rgb)[1]
+
 			[_, _, d1, d2, cc] = X_rgb.get_shape()
 			X_rgb = tf.reshape(X_rgb, [-1, int(d1), int(d2), int(cc)],name="en_in")
 			print("Network Structure")
-			print("base_r2n2",X_rgb.shape)
+			print("base_r2n2",X_rgb.shape) #base_r2n2 (?, 127, 127, 3)
 	 
 			en_c = [96, 128, 256, 256, 256, 256]
 			l1 = tools.Ops.xxlu(tools.Ops.conv2d(X_rgb, k=7, out_c=en_c[0], str=1, name='en_c1'), label='lrelu')
-			print("l1_r2n",l1.shape)
+			print("l1_r2n",l1.shape) #l1_r2n (?, 127, 127, 96)
 			l2 = tools.Ops.xxlu(tools.Ops.conv2d(l1, k=3, out_c=en_c[0], str=1, name='en_c2'), label='lrelu')
 			l2 = tools.Ops.maxpool2d(l2, k=2, s=2, name='en_mp1')
-			print("l2_r2n",l2.shape)
-
+			print("l2_r2n",l2.shape) #l2_r2n (?, 64, 64, 96)
 			l3 = tools.Ops.xxlu(tools.Ops.conv2d(l2, k=3, out_c=en_c[1], str=1, name='en_c3'), label='lrelu')
-			print("l3_r2n",l3.shape)
+			print("l3_r2n",l3.shape) #l3_r2n (?, 64, 64, 128)
 			l4 = tools.Ops.xxlu(tools.Ops.conv2d(l3, k=3, out_c=en_c[1], str=1, name='en_c4'), label='lrelu')
-			print("l4_r2n",l4.shape)
+			print("l4_r2n",l4.shape) #l4_r2n (?, 64, 64, 128)
 			l22 = tools.Ops.conv2d(l2, k=1, out_c=en_c[1], str=1, name='en_c22')
-			print("l22_r2n",l22.shape)
+			print("l22_r2n",l22.shape) #l22_r2n (?, 64, 64, 128)
 			l4 = l4 + l22
 			l4 = tools.Ops.maxpool2d(l4, k=2, s=2, name='en_mp2')
-			print("l4+l22_r2n",l4.shape)
+			print("l4+l22_r2n",l4.shape) #l4+l22_r2n (?, 32, 32, 128)
 
 			l5 = tools.Ops.xxlu(tools.Ops.conv2d(l4, k=3, out_c=en_c[2], str=1, name='en_c5'), label='lrelu')
-			print("l5_r2n",l5.shape)
+			print("l5_r2n",l5.shape) #l5_r2n (?, 32, 32, 256)
 			l6 = tools.Ops.xxlu(tools.Ops.conv2d(l5, k=3, out_c=en_c[2], str=1, name='en_c6'), label='lrelu')
-			print("l6_r2n",l6.shape)
+			print("l6_r2n",l6.shape) #l6_r2n (?, 32, 32, 256)
 			l44 = tools.Ops.conv2d(l4, k=1, out_c=en_c[2], str=1, name='en_c44')
-			print("l44_r2n",l44.shape)
+			print("l44_r2n",l44.shape) #l44_r2n (?, 32, 32, 256)
 			l6 = l6 + l44
 			l6 = tools.Ops.maxpool2d(l6, k=2, s=2, name='en_mp3')
-			print("l6+l44_r2n",l6.shape)
+			print("l6+l44_r2n",l6.shape) #l6+l44_r2n (?, 16, 16, 256)
 
 			l7 = tools.Ops.xxlu(tools.Ops.conv2d(l6, k=3, out_c=en_c[3], str=1, name='en_c7'), label='lrelu')
-			print("l7_r2n",l7.shape)
+			print("l7_r2n",l7.shape) #l7_r2n (?, 16, 16, 256)
 			l8 = tools.Ops.xxlu(tools.Ops.conv2d(l7, k=3, out_c=en_c[3], str=1, name='en_c8'), label='lrelu')
-			print("l8_r2n",l8.shape)
+			print("l8_r2n",l8.shape)#l8_r2n (?, 16, 16, 256)
 #			l66=tools.Ops.conv2d(l6, k=1, out_c=en_c[3], str=1, name='en_c66')
 #			print("l66_r2n",l66.shape)
 #			l8=l8+l66
 			l8 = tools.Ops.maxpool2d(l8, k=2, s=2, name='en_mp4')
-			print("l8_r2n",l8.shape)
+			print("l8_r2n",l8.shape) #l8_r2n (?, 8, 8, 256)
 
 			l9 = tools.Ops.xxlu(tools.Ops.conv2d(l8, k=3, out_c=en_c[4], str=1, name='en_c9'), label='lrelu')
-			print("l9_r2n",l9.shape)
+			print("l9_r2n",l9.shape) #l9_r2n (?, 8, 8, 256)
 			l10 = tools.Ops.xxlu(tools.Ops.conv2d(l9, k=3, out_c=en_c[4], str=1, name='en_c10'), label='lrelu')
-			print("l10_r2n",l10.shape)
+			print("l10_r2n",l10.shape)#l10_r2n (?, 8, 8, 256)
 			l88 = tools.Ops.conv2d(l8, k=1, out_c=en_c[4], str=1, name='en_c88')
-			print("l88_r2n",l88.shape)
+			print("l88_r2n",l88.shape) #l88_r2n (?, 8, 8, 256)
 			l10 = l10 + l88
 			l10 = tools.Ops.maxpool2d(l10, k=2, s=2, name='en_mp5')
-			print("l10_r2n",l10.shape)
+			print("l10_r2n",l10.shape) #l10_r2n (?, 4, 4, 256)
 
 			l11 = tools.Ops.xxlu(tools.Ops.conv2d(l10, k=3, out_c=en_c[5], str=1, name='en_c11'), label='lrelu')
-			print("l11_r2n",l11.shape)
+			print("l11_r2n",l11.shape) #l11_r2n (?, 4, 4, 256)
 			l12 = tools.Ops.xxlu(tools.Ops.conv2d(l11, k=3, out_c=en_c[5], str=1, name='en_c12'), label='lrelu')
-			print("l12_r2n",l12.shape)
+			print("l12_r2n",l12.shape) #l12_r2n (?, 4, 4, 256)
 			l1010 = tools.Ops.conv2d(l10, k=1, out_c=en_c[5], str=1, name='en_c1010')
-			print("l1010_r2n",l1010.shape)
+			print("l1010_r2n",l1010.shape) #l1010_r2n (?, 4, 4, 256)
 			l12 = l12 + l1010
 			l12 = tools.Ops.maxpool2d(l12, k=2, s=2, name='en_mp6')
-			print("l12_r2n",l12.shape)
+			print("l12_r2n",l12.shape) #l12_r2n (?, 2, 2, 256)
 			
 		
 			[_, d1, d2, cc] = l12.get_shape()
 			l12 = tf.reshape(l12, [-1, int(d1) * int(d2) * int(cc)],name="en_fc1_in")
-			print("fc1_input_r2n",l12.shape)
+			print("fc1_input_r2n",l12.shape) #fc1_input_r2n (?, 1024)
 			fc = tools.Ops.xxlu(tools.Ops.fc(l12, out_d=1024, name='en_fc1'), label='lrelu')
-			print("fc1_output_r2n",fc.shape)
+			print("fc1_output_r2n",fc.shape)#fc1_output_r2n (?, 1024)
 			
 		with tf.variable_scope('Att_Net'):	
 			#### use fc attention
 			input = tf.reshape(fc, [-1, im_num, 1024],name="Att_fc_in")
-			print("att_fc_in_r2n",input.shape)
+			print("att_fc_in_r2n",input.shape) #att_fc_in_r2n (?, ?, 1024)
 			latent_3d, weights = attsets_fc(input, out_ele_num=1)
-			print("att_fc_out_r2n",latent_3d.shape)
+			print("att_fc_out_r2n",latent_3d.shape) #att_fc_out_r2n (?, 1024)
 			
 		with tf.variable_scope('Decoder'):
 			####
 			latent_3d = tools.Ops.xxlu(tools.Ops.fc(latent_3d, out_d=4*4*4*128, name='de_fc2'), label='lrelu')
-			print("fc3_out_r2n",latent_3d.shape)
+			print("fc3_out_r2n",latent_3d.shape) #fc3_out_r2n (?, 8192)
 			latent_3d = tf.reshape(latent_3d, [-1, 4, 4, 4, 128],name="de_fc2_out")
 
 		####
 
 			de_c = [128, 128, 128, 64, 32, 1]
 			
-			print("d1_in_r2n",latent_3d.shape)
+			print("d1_in_r2n",latent_3d.shape) #d1_in_r2n (?, 4, 4, 4, 128)
 			d1 = tools.Ops.xxlu(tools.Ops.deconv3d(latent_3d, k=3, out_c=de_c[1], str=2, name='de_c1'), label='lrelu')
-			print("d1_out_r2n",d1.shape)
+			print("d1_out_r2n",d1.shape) #d1_out_r2n (?, 8, 8, 8, 128)
 			d2 = tools.Ops.xxlu(tools.Ops.deconv3d(d1, k=3, out_c=de_c[1], str=1, name='de_c2'), label='lrelu')
-			print("d2_out_r2n",d2.shape)
+			print("d2_out_r2n",d2.shape) #d2_out_r2n (?, 8, 8, 8, 128)
 			d00 = tools.Ops.deconv3d(latent_3d, k=1, out_c=de_c[1], str=2, name='de_c00')
-			print("d00_out_r2n",d00.shape)
+			print("d00_out_r2n",d00.shape)#d00_out_r2n (?, 8, 8, 8, 128)
 			d2 = d2 + d00
-			print("d2+d00_out_r2n",d2.shape)
+			print("d2+d00_out_r2n",d2.shape)#d2+d00_out_r2n (?, 8, 8, 8, 128)
 
 			d3 = tools.Ops.xxlu(tools.Ops.deconv3d(d2, k=3, out_c=de_c[2], str=2, name='de_c3'), label='lrelu')
-			print("d3_out_r2n",d3.shape)
+			print("d3_out_r2n",d3.shape)#d3_out_r2n (?, 16, 16, 16, 128)
 			d4 = tools.Ops.xxlu(tools.Ops.deconv3d(d3, k=3, out_c=de_c[2], str=1, name='de_c4'), label='lrelu')
-			print("d4_out_r2n",d4.shape)
+			print("d4_out_r2n",d4.shape)#d4_out_r2n (?, 16, 16, 16, 128)
 			d22 = tools.Ops.deconv3d(d2, k=1, out_c=de_c[2], str=2, name='de_c22')
-			print("d22_out_r2n",d22.shape)
+			print("d22_out_r2n",d22.shape)#d22_out_r2n (?, 16, 16, 16, 128)
 			d4 = d4 + d22
-			print("d4+d22_out_r2n",d4.shape)
+			print("d4+d22_out_r2n",d4.shape)#d4+d22_out_r2n (?, 16, 16, 16, 128)
 
 			d5 = tools.Ops.xxlu(tools.Ops.deconv3d(d4, k=3, out_c=de_c[3], str=2, name='de_c5'), label='lrelu')
-			print("d5_out_r2n",d5.shape)
+			print("d5_out_r2n",d5.shape)#d5_out_r2n (?, 32, 32, 32, 64)
 			d6 = tools.Ops.xxlu(tools.Ops.deconv3d(d5, k=3, out_c=de_c[3], str=1, name='de_c6'), label='lrelu')
-			print("d6_out_r2n",d6.shape)
+			print("d6_out_r2n",d6.shape)#d6_out_r2n (?, 32, 32, 32, 64)
 			d44 = tools.Ops.deconv3d(d4, k=1, out_c=de_c[3], str=2, name='de_c44')
-			print("d44_out_r2n",d44.shape)
+			print("d44_out_r2n",d44.shape)#d44_out_r2n (?, 32, 32, 32, 64)
 			d6 = d6 + d44
-			print("d6+d44_out_r2n",d6.shape)
+			print("d6+d44_out_r2n",d6.shape) #d6+d44_out_r2n (?, 32, 32, 32, 64)
 
 			d7 = tools.Ops.xxlu(tools.Ops.deconv3d(d6, k=3, out_c=de_c[4], str=1, name='de_c7'), label='lrelu')
-			print("d7_out_r2n",d7.shape)
+			print("d7_out_r2n",d7.shape) #d7_out_r2n (?, 32, 32, 32, 32)
 			d8 = tools.Ops.xxlu(tools.Ops.deconv3d(d7, k=3, out_c=de_c[4], str=1, name='de_c8'), label='lrelu')
-			print("d8_out_r2n",d8.shape)
+			print("d8_out_r2n",d8.shape)#d8_out_r2n (?, 32, 32, 32, 32)
 			d77 = tools.Ops.xxlu(tools.Ops.deconv3d(d7, k=3, out_c=de_c[4], str=1, name='de_c77'), label='lrelu')
-			print("d77_out_r2n",d77.shape)
+			print("d77_out_r2n",d77.shape)#d77_out_r2n (?, 32, 32, 32, 32)
 			d8 = d8 + d77
-			print("d8+d77_out_r2n",d8.shape)
+			print("d8+d77_out_r2n",d8.shape) #d8+d77_out_r2n (?, 32, 32, 32, 32)
 
 			d11 = tools.Ops.deconv3d(d8, k=3, out_c=de_c[5], str=1, name='de_c9')
-			print("d11_out_r2n",d11.shape)
+			print("d11_out_r2n",d11.shape) #d11_out_r2n (?, 32, 32, 32, 1)
 			
 			ref_in = tf.reshape(d11, [-1, vox_res32, vox_res32, vox_res32],name="ref_in")     ###
 			
@@ -389,7 +392,7 @@ class Network:
 
 			att_o = tf.reshape(y, [-1, vox_res32, vox_res32, vox_res32],name="de_out")
 			
-			print("att_out_shape",att_o.shape)
+			print("att_out_shape",att_o.shape) #att_out_shape (?, 32, 32, 32)
 			
 		with tf.variable_scope('ref_net'):
 		
@@ -427,19 +430,27 @@ class Network:
 				self.mean_loss = tf.div(x=tf.math.add(x=self.vae_loss,y=self.rec_loss,name='add_loss'),y=2,name='mean_loss')
 				tf.summary.histogram("mean_vae_loss",self.mean_loss)
 				tf.summary.scalar("mean_vae_loss",self.mean_loss)
-								 
-				base_en_var = [var for var in tf.trainable_variables() if var.name.startswith('Encoder/en')]
-				base_dec_var = [var for var in tf.trainable_variables() if var.name.startswith('Decoder/de')]
-				att_var = [var for var in tf.trainable_variables() if var.name.startswith('Att_Net/att')]
-				refine_var = [var for var in tf.trainable_variables() if var.name.startswith('ref_net/ref')]
-
-				self.refine_optim = tf.train.AdamOptimizer(learning_rate=self.refine_lr).minimize(self.rec_loss, var_list=refine_var)				
-				self.base_en_optim2 = tf.train.AdamOptimizer(learning_rate=self.lr).minimize(self.vae_loss, var_list=base_en_var)
-				self.base_de_optim2 = tf.train.AdamOptimizer(learning_rate=self.lr).minimize(self.vae_loss, var_list=base_dec_var)
-				self.att_optim2 = tf.train.AdamOptimizer(learning_rate=self.lr).minimize(self.vae_loss, var_list=att_var)
-
 				
-				
+			with tf.variable_scope('Evaluation_Metric'):			    
+                		gt_vox=Y_vox_
+                		self.iou_ref = metric_iou(Y_pred_,gt_vox)
+                		tf.summary.scalar('iou_refiner', self.iou_ref)
+                		tf.summary.histogram('iou_refiner', self.iou_ref)
+                		self.iou_vae = metric_iou(vae_o_,gt_vox)
+                		tf.summary.scalar('iou_vae', self.iou_vae)
+                		tf.summary.histogram("iou_vae",self.iou_vae)
+                		
+			with tf.variable_scope('Optimization'):
+
+                		base_en_var = [var for var in tf.trainable_variables() if var.name.startswith('Encoder/en')]
+                		base_dec_var = [var for var in tf.trainable_variables() if var.name.startswith('Decoder/de')]
+                		att_var = [var for var in tf.trainable_variables() if var.name.startswith('Att_Net/att')]
+                		refine_var = [var for var in tf.trainable_variables() if var.name.startswith('ref_net/ref')]
+                		self.refine_optim = tf.train.AdamOptimizer(learning_rate=self.refine_lr).minimize(self.rec_loss, var_list=refine_var)
+                		self.base_en_optim2 = tf.train.AdamOptimizer(learning_rate=self.lr).minimize(self.vae_loss, var_list=base_en_var)
+                		self.base_de_optim2 = tf.train.AdamOptimizer(learning_rate=self.lr).minimize(self.vae_loss, var_list=base_dec_var)
+                		self.att_optim2 = tf.train.AdamOptimizer(learning_rate=self.lr).minimize(self.vae_loss, var_list=att_var)
+			    				
 		
 		print ("total weights:",tools.Ops.variable_count())
 		self.saver = tf.train.Saver(max_to_keep=1)
@@ -504,19 +515,22 @@ class Network:
 					print("single_view_train_rgb_input_shape ",rgb.shape)
 					vox = np.tile(Y_vox_bat[:,None,:,:,:],[1,train_view_num,1,1,1])
 					vox = np.reshape(vox, [batch_size*train_view_num, 32,32,32])	
-					vae_loss_c,eee,ddd, rec_loss_c, sum_train,rrr,mean_vae = self.sess.run([self.vae_loss,self.base_en_optim2,self.base_de_optim2,self.rec_loss,self.merged,self.refine_optim,self.mean_loss],feed_dict={self.X_rgb: rgb, self.Y_vox: vox, self.lr: att_lr,self.refine_lr: ref_lr})
+					vae_loss_c,eee,ddd, rec_loss_c, sum_train,rrr,mean_vae,iou_ref_,iou_vae_ = self.sess.run([self.vae_loss,self.base_en_optim2,self.base_de_optim2,self.rec_loss,self.merged,self.refine_optim,self.mean_loss,self.iou_ref,self.iou_vae],feed_dict={self.X_rgb: rgb, self.Y_vox: vox, self.lr: att_lr,self.refine_lr: ref_lr})
 					print ('ep:', epoch, 'i:', i, 'train single rec loss:', rec_loss_c)
 					print ('ep:', epoch, 'i:', i, 'train single vae loss:', vae_loss_c)
 					print ('ep:', epoch, 'i:', i, 'train single mean_vae loss:',mean_vae)
-					
+					print ('ep:', epoch, 'i:', i, 'train single ref_iou:',iou_ref_)
+					print ('ep:', epoch, 'i:', i, 'train single vae_iou:',iou_vae_)
                                         									
 				########## multi view train
 				if multi_view_train:
 					
-					vae_loss_c,rec_loss_c, _, sum_train,xxx,mean_vae = self.sess.run([self.vae_loss,self.rec_loss, self.att_optim2, self.merged,self.refine_optim,self.mean_loss],feed_dict={self.X_rgb: X_rgb_bat, self.Y_vox: Y_vox_bat,self.lr: att_lr,self.refine_lr: ref_lr})
+					vae_loss_c,rec_loss_c, _, sum_train,xxx,mean_vae,iou_ref_,iou_vae_ = self.sess.run([self.vae_loss,self.rec_loss, self.att_optim2, self.merged,self.refine_optim,self.mean_loss,self.iou_ref,self.iou_vae],feed_dict={self.X_rgb: X_rgb_bat, self.Y_vox: Y_vox_bat,self.lr: att_lr,self.refine_lr: ref_lr})
 					print ('ep:', epoch, 'i:', i, 'train multi rec loss:', rec_loss_c)
 					print ('ep:', epoch, 'i:', i, 'train multi vae loss:', vae_loss_c)
 					print('ep:',epoch,'i',i,'train multi mean_vae loss:',mean_vae)
+					print ('ep:', epoch, 'i:', i, 'train multi ref_iou:',iou_ref_)
+					print ('ep:', epoch, 'i:', i, 'train multi vae_iou:',iou_vae_)
                                         				
 				############
 				if i % 10 == 0:
@@ -524,17 +538,21 @@ class Network:
 					
 				
 				#### testing
-				if i % 2 == 0 :
+				if i % 50 == 0 :
 					X_rgb_batch, Y_vox_batch = data.load_X_Y_test_next_batch(test_mv=3)
 					
-					vae_pred = tf.get_default_graph().get_tensor_by_name("Decoder/de_out:0")
-					ref_pred = tf.get_default_graph().get_tensor_by_name("ref_net/ref_Dec/ref_out:0")
+#					vae_pred = tf.get_default_graph().get_tensor_by_name("Decoder/de_out:0")
+#					ref_pred = tf.get_default_graph().get_tensor_by_name("ref_net/ref_Dec/ref_out:0")
+#					gt_vox=Y_vox_batch.astype(np.float32)
+					
+#					iou_pred = metric_iou(ref_pred,gt_vox)
+#					tf.summary.scalar("iou",iou_pred)
 
-					vae_pred_,ref_pred_,rrrr,aaaa,rec_loss_te, qwerty, Y_vox_test_pred, att_pred, sum_test,mean_vae = \
-						self.sess.run([vae_pred,ref_pred,self.refine_optim,self.att_optim2,self.rec_loss,self.vae_loss, self.Y_pred,self.weights, self.merged,self.mean_loss],feed_dict={self.X_rgb: X_rgb_batch, self.Y_vox: Y_vox_batch,self.lr: att_lr,self.refine_lr: ref_lr})
+					rrrr,aaaa,rec_loss_te, qwerty, Y_vox_test_pred, att_pred, sum_test,mean_vae,iou_ref_,iou_vae_ = \
+						self.sess.run([self.refine_optim,self.att_optim2,self.rec_loss,self.vae_loss, self.Y_pred,self.weights, self.merged,self.mean_loss,self.iou_ref,self.iou_vae],feed_dict={self.X_rgb: X_rgb_batch, self.Y_vox: Y_vox_batch,self.lr: att_lr,self.refine_lr: ref_lr})
 						
 					X_rgb_batch = X_rgb_batch.astype(np.float16)
-					gt_vox=Y_vox_batch.astype(np.float32)
+					
 					Y_vox_batch = Y_vox_batch.astype(np.float16)
 					Y_vox_test_pred = Y_vox_test_pred.astype(np.float16)
 					att_pred = att_pred.astype(np.float16)
@@ -544,24 +562,26 @@ class Network:
 					
 					self.sum_writer_test.add_summary(sum_test, epoch * total_train_batch_num + i)
 										
-					iou_ref=evaluate_voxel_prediction(ref_pred_,gt_vox)
-					iou_vae=evaluate_voxel_prediction(vae_pred_,gt_vox)
+#					iou_ref=evaluate_voxel_prediction(ref_pred_,gt_vox)
+#					iou_vae=evaluate_voxel_prediction(vae_pred_,gt_vox)
 					
-					print("Ref_iou:",iou_ref)
-					print("Vae_iou:",iou_vae)
+#					print("Ref_iou:",iou_ref)
+#					print("Vae_iou:",iou_vae)
 					
-					plot_list_iou.append(iou_ref)
-					plot_list_i.append(i)
-					graph_plot(plot_list_iou,plot_list_i)
+#					plot_list_iou.append(iou_ref)
+#					plot_list_i.append((i/50))
+#					graph_plot(plot_list_iou,plot_list_i)
 					print ('ep:', epoch, 'i:', i, 'test rec loss:', rec_loss_te)
 					print ('ep:', epoch, 'i:', i, 'test vae loss:', qwerty )
 					print ('ep:', epoch, 'i:', i, 'test mean_vae loss:', mean_vae) 
+					print ('ep:', epoch, 'i:', i, 'test ref_iou:',iou_ref_)
+					print ('ep:', epoch, 'i:', i, 'test vae_iou:',iou_vae_)
 					
 				#### model saving
 				if i % 100 == 0 :
 					self.saver.save( self.sess, save_path=self.train_mod_dir + 'model.cptk' )
 					print ( 'epoch:', epoch, 'i:', i, 'model saved!' )
-					plt.show()
+#					plt.show()
 				
 
 									
@@ -594,4 +614,5 @@ if __name__ =='__main__':
 	
 
 	
+
 

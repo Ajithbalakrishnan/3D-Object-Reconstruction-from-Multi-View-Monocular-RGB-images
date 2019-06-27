@@ -47,8 +47,8 @@ def load_real_rgbs(test_mv=test_views):
     return x_sample, None
 
 def load_shapenet_rgbs(test_mv=test_views):
-    obj_rgbs_folder = './Data_sample/ShapeNetRendering/02691156/1a04e3eab45ca15dd86060f189eb133/rendering/'
-    obj_gt_vox_path ='./Data_sample/ShapeNetVox32/02691156/1a04e3eab45ca15dd86060f189eb133/model.binvox'
+    obj_rgbs_folder = './Data_sample/ShapeNetRendering/02828884/1a40eaf5919b1b3f3eaa2b95b99dae6/rendering/'
+    obj_gt_vox_path ='./Data_sample/ShapeNetVox32/02828884/1a40eaf5919b1b3f3eaa2b95b99dae6/model.binvox'
     rgbs=[]
     rgbs_views = sorted(os.listdir(obj_rgbs_folder))
     for v in rgbs_views:
@@ -79,32 +79,27 @@ def ttest_demo():
         print ('model restored!')
 
         X = tf.get_default_graph().get_tensor_by_name("Placeholder:0")
-#        Y_pred = tf.get_default_graph().get_tensor_by_name("r2n/Reshape_7:0")
-#        Y_pred = tf.get_default_graph().get_tensor_by_name("ref_net/ref_Dec/ref_out:0")
-        Y_pred = tf.get_default_graph().get_tensor_by_name("Decoder/de_out:0")
+#        Y_pred = tf.get_default_graph().get_tensor_by_name("r2n/Reshape_9:0")
+        ref_pred = tf.get_default_graph().get_tensor_by_name("ref_net/ref_Dec/ref_out:0")
+        vae_pred = tf.get_default_graph().get_tensor_by_name("Decoder/de_out:0")
         
-        print("Y_pred_shape",Y_pred.shape)
 
 #        x_sample, gt_vox = load_real_rgbs()
         x_sample, gt_vox = load_shapenet_rgbs()
         
         
-	### reconstruction loss #########################################################
+	### reconstruction loss ###
    
         gt_vox1=gt_vox.astype(np.float32)
         Y_vox_ = tf.reshape(gt_vox1, shape=[-1, vox_res ** 3])
-        Y_pred_ = tf.reshape(Y_pred, shape=[-1, vox_res ** 3])
+        Y_pred_ = tf.reshape(ref_pred, shape=[-1, vox_res ** 3])
         rec_loss=tf.reduce_mean(-tf.reduce_mean(Y_vox_*tf.log(Y_pred_ + 1e-8),reduction_indices=[1])-tf.reduce_mean((1-Y_vox_)*tf.log(1 - Y_pred_+1e-8),reduction_indices=[1]))
-
-	
         
-                                #########################################################
+                                
         ## session run
-        y_pred,recon_loss = sess.run([Y_pred, rec_loss], feed_dict={X: x_sample})
-        print("y_pred shape ",y_pred.shape)
-        
- #       exit()
-        		
+        vae_pred_,y_pred,recon_loss = sess.run([vae_pred,ref_pred, rec_loss], feed_dict={X: x_sample})
+        print("Pred_Vox shape ",y_pred.shape)
+                		
 		
         print("Number of Views : ", test_views) 		
         print("Cross entropy loss : ",	recon_loss)
@@ -112,19 +107,24 @@ def ttest_demo():
         y_pred_=y_pred
 
         iou_=evaluate_voxel_prediction(y_pred_,gt_vox1)
-        print("evaluate_voxel_prediction:",iou_)
-		
-#        iou_value= metric_IoU( y_pred,gt_vox1)
-#        print("metric_IoU :",iou_value)		                     
+        print("Ref_iou:",iou_)
+        iou_=evaluate_voxel_prediction(vae_pred_,gt_vox1)
+        print("Vae_iou:",iou_)
+			                     
         
 #        y_pred= sess.run(Y_pred, feed_dict={X: x_sample})             
     ###### to visualize
     th = 0.25
     y_pred[y_pred>=th]=1
     y_pred[y_pred<th]=0
-    tools.Data.plotFromVoxels(np.reshape(y_pred,[32,32,32]), title='y_pred')
+    
+    vae_pred_[vae_pred_>=th]=1
+    vae_pred_[vae_pred_<th]=0
+    
+    tools.Data.plotFromVoxels(np.reshape(y_pred,[32,32,32]), title='ref_pred')
+    tools.Data.plotFromVoxels(np.reshape(vae_pred_,[32,32,32]), title='vae_pred')
     if gt_vox is not None:
-        tools.Data.plotFromVoxels(np.reshape(gt_vox,[32,32,32]), title='y_true')
+        tools.Data.plotFromVoxels(np.reshape(gt_vox,[32,32,32]), title='g_truth')
     from matplotlib.pyplot import show
     show()
 
