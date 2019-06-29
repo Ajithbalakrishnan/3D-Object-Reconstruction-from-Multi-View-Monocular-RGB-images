@@ -32,9 +32,6 @@ multi_view_train = True
 
 #####################################
 
-plot_list_iou = []
-plot_list_i = []
-iii=0
 config={}                                 # python dictionary
 config['batch_size'] = batch_size
 config['total_mv'] = total_mv
@@ -49,15 +46,12 @@ for name in config['cat_names']:
 # output : {'batch_size': 1, 'total_mv': 24, 'cat_names': ['03001627'], 'Y_vox_03001627': '/home/wiproec4/3d reconstruction/attsets/Data_sample/#ShapeNetVox32/03001627/', 'X_rgb_03001627': '/home/wiproec4/3d reconstruction/attsets/Data_sample/ShapeNetRendering/03001627/'}
 
 def metric_iou(prediction, gt):
-#    labels = tf.greater_equal(gt[gt], 0.5)
-#    prediction = tf.cast(prediction,tf.int32)
     predictions = tf.greater_equal(prediction, 0.5)
     gt_=tf.greater_equal(gt, 0.5)
     intersection = tf.reduce_sum(tf.cast(tf.logical_and(predictions,gt_),tf.float32))
     union = tf.reduce_sum(tf.cast(tf.math.logical_or(predictions,gt_),tf.float32))
     iou = tf.cast(x = intersection,dtype=tf.float32)/ tf.cast(x = union,dtype=tf.float32)
     return iou
-
 
 def conv2d(x,numfilt,filtsz,stride_=1,pad='same',act=True,name=None):
     x = Conv2D(filters=numfilt, kernel_size=filtsz,strides=stride_,padding=pad,data_format='channels_last',use_bias=False,name=name+'conv2d')(x)
@@ -114,88 +108,95 @@ def incresC(x,scale,name=None):
     return final_lay
     
 def stemblock(img_input):
-	x = conv2d(img_input,32,3,2,'valid',True,name='conv1')
-	x = conv2d(x,32,3,1,'valid',True,name='conv2')
-	x = conv2d(x,64,3,1,'valid',True,name='conv3')
+	with tf.variable_scope('stemblock'):
+		x = conv2d(img_input,32,3,2,'valid',True,name='conv1')
+		x = conv2d(x,32,3,1,'valid',True,name='conv2')
+		x = conv2d(x,64,3,1,'valid',True,name='conv3')
 
-	x_11 = MaxPooling2D(3,strides=1,padding='valid',name='stem_br_11'+'_maxpool_1')(x)
-	x_12 = conv2d(x,64,3,1,'valid',True,name='stem_br_12')
+		x_11 = MaxPooling2D(3,strides=1,padding='valid',name='stem_br_11'+'_maxpool_1')(x)
+		x_12 = conv2d(x,64,3,1,'valid',True,name='stem_br_12')
 
-	x = Concatenate(axis=3, name = 'stem_concat_1')([x_11,x_12])
+		x = Concatenate(axis=3, name = 'stem_concat_1')([x_11,x_12])
 
-	x_21 = conv2d(x,64,1,1,'same',True,name='stem_br_211')
-	x_21 = conv2d(x_21,64,[1,7],1,'same',True,name='stem_br_212')
-	x_21 = conv2d(x_21,64,[7,1],1,'same',True,name='stem_br_213')
-	x_21 = conv2d(x_21,96,3,1,'valid',True,name='stem_br_214')
+		x_21 = conv2d(x,64,1,1,'same',True,name='stem_br_211')
+		x_21 = conv2d(x_21,64,[1,7],1,'same',True,name='stem_br_212')
+		x_21 = conv2d(x_21,64,[7,1],1,'same',True,name='stem_br_213')
+		x_21 = conv2d(x_21,96,3,1,'valid',True,name='stem_br_214')
 
-	x_22 = conv2d(x,64,1,1,'same',True,name='stem_br_221')
-	x_22 = conv2d(x_22,96,3,1,'valid',True,name='stem_br_222')
+		x_22 = conv2d(x,64,1,1,'same',True,name='stem_br_221')
+		x_22 = conv2d(x_22,96,3,1,'valid',True,name='stem_br_222')
 
-	x = Concatenate(axis=3, name = 'stem_concat_2')([x_21,x_22])
+		x = Concatenate(axis=3, name = 'stem_concat_2')([x_21,x_22])
 
-	x_31 = conv2d(x,192,3,1,'valid',True,name='stem_br_31')
-	x_32 = MaxPooling2D(3,strides=1,padding='valid',name='stem_br_32'+'_maxpool_2')(x)
-	x = Concatenate(axis=3, name = 'stem_concat_3')([x_31,x_32])
-	return(x)
+		x_31 = conv2d(x,192,3,1,'valid',True,name='stem_br_31')
+		x_32 = MaxPooling2D(3,strides=1,padding='valid',name='stem_br_32'+'_maxpool_2')(x)
+		x = Concatenate(axis=3, name = 'stem_concat_3')([x_31,x_32])
+		return(x)
 
 def inceptionresnet2(x):
-	#Inception-ResNet-A modules
-	x = incresA(x,0.15,name='incresA_1')
-	x = incresA(x,0.15,name='incresA_2')
-	x = incresA(x,0.15,name='incresA_3')
-	x = incresA(x,0.15,name='incresA_4')
-	print("A modules",x.shape)
+    with tf.variable_scope('InceptionResNetA'):
+		#Inception-ResNet-A modules
+        x = incresA(x,0.15,name='incresA_1')
+        x = incresA(x,0.15,name='incresA_2')
+        x = incresA(x,0.15,name='incresA_3')
+        x = incresA(x,0.15,name='incresA_4')
+        print("A modules",x.shape)
 
-	#35 × 35 to 17 × 17 reduction module.
-	x_red_11 = MaxPooling2D(3,strides=2,padding='valid',name='red_maxpool_1')(x)
+    with tf.variable_scope('ReductionModuleA'):
+		#35 × 35 to 17 × 17 reduction module.
+        x_red_11 = MaxPooling2D(3,strides=2,padding='valid',name='red_maxpool_1')(x)
 
-	x_red_12 = conv2d(x,384,3,2,'valid',True,name='x_red1_c1')
+        x_red_12 = conv2d(x,384,3,2,'valid',True,name='x_red1_c1')
 
-	x_red_13 = conv2d(x,256,1,1,'same',True,name='x_red1_c2_1')
-	x_red_13 = conv2d(x_red_13,256,3,1,'same',True,name='x_red1_c2_2')
-	x_red_13 = conv2d(x_red_13,384,3,2,'valid',True,name='x_red1_c2_3')
+        x_red_13 = conv2d(x,256,1,1,'same',True,name='x_red1_c2_1')
+        x_red_13 = conv2d(x_red_13,256,3,1,'same',True,name='x_red1_c2_2')
+        x_red_13 = conv2d(x_red_13,384,3,2,'valid',True,name='x_red1_c2_3')
 
-	x = Concatenate(axis=3, name='red_concat_1')([x_red_11,x_red_12,x_red_13])
-	print("1st reduction modules",x.shape)
+        x = Concatenate(axis=3, name='red_concat_1')([x_red_11,x_red_12,x_red_13])
+        print("1st reduction modules",x.shape)
 
-	#Inception-ResNet-B modules
-	x = incresB(x,0.1,name='incresB_1')
-	x = incresB(x,0.1,name='incresB_2')
-	x = incresB(x,0.1,name='incresB_3')
-	x = incresB(x,0.1,name='incresB_4')
-	x = incresB(x,0.1,name='incresB_5')
-	x = incresB(x,0.1,name='incresB_6')
-	x = incresB(x,0.1,name='incresB_7')
-	print("B modules",x.shape)
+    with tf.variable_scope('InceptionResNetB'):    
+		#Inception-ResNet-B modules
+        x = incresB(x,0.1,name='incresB_1')
+        x = incresB(x,0.1,name='incresB_2')
+        x = incresB(x,0.1,name='incresB_3')
+        x = incresB(x,0.1,name='incresB_4')
+        x = incresB(x,0.1,name='incresB_5')
+        x = incresB(x,0.1,name='incresB_6')
+        x = incresB(x,0.1,name='incresB_7')
+        print("B modules",x.shape)
 
-	#17 × 17 to 8 × 8 reduction module.
-	x_red_21 = MaxPooling2D(3,strides=2,padding='valid',name='red_maxpool_2')(x)
+    with tf.variable_scope('ReductionModuleB'):
+		#17 × 17 to 8 × 8 reduction module.
+        x_red_21 = MaxPooling2D(3,strides=2,padding='valid',name='red_maxpool_2')(x)
 
-	x_red_22 = conv2d(x,256,1,1,'same',True,name='x_red2_c11')
-	x_red_22 = conv2d(x_red_22,384,3,2,'valid',True,name='x_red2_c12')
+        x_red_22 = conv2d(x,256,1,1,'same',True,name='x_red2_c11')
+        x_red_22 = conv2d(x_red_22,384,3,2,'valid',True,name='x_red2_c12')
 
-	x_red_23 = conv2d(x,256,1,1,'same',True,name='x_red2_c21')
-	x_red_23 = conv2d(x_red_23,256,3,2,'valid',True,name='x_red2_c22')
+        x_red_23 = conv2d(x,256,1,1,'same',True,name='x_red2_c21')
+        x_red_23 = conv2d(x_red_23,256,3,2,'valid',True,name='x_red2_c22')
 
-	x_red_24 = conv2d(x,256,1,1,'same',True,name='x_red2_c31')
-	x_red_24 = conv2d(x_red_24,256,3,1,'same',True,name='x_red2_c32')
-	x_red_24 = conv2d(x_red_24,256,3,2,'valid',True,name='x_red2_c33')
+        x_red_24 = conv2d(x,256,1,1,'same',True,name='x_red2_c31')
+        x_red_24 = conv2d(x_red_24,256,3,1,'same',True,name='x_red2_c32')
+        x_red_24 = conv2d(x_red_24,256,3,2,'valid',True,name='x_red2_c33')
 
-	x = Concatenate(axis=3, name='red_concat_2')([x_red_21,x_red_22,x_red_23,x_red_24])
-	print("2nd reduction modules",x.shape)
+        x = Concatenate(axis=3, name='red_concat_2')([x_red_21,x_red_22,x_red_23,x_red_24])
+        print("2nd reduction modules",x.shape)
 
-	#Inception-ResNet-C modules
-	x = incresC(x,0.2,name='incresC_1')
-	x = incresC(x,0.2,name='incresC_2')
-	x = incresC(x,0.2,name='incresC_3')
-	print("C modules",x.shape)
+    with tf.variable_scope('InceptionResNetC'): 
+		#Inception-ResNet-C modules
+        x = incresC(x,0.2,name='incresC_1')
+        x = incresC(x,0.2,name='incresC_2')
+        x = incresC(x,0.2,name='incresC_3')
+        print("C modules",x.shape)
 
 	#TOP
-	x = GlobalAveragePooling2D(data_format='channels_last')(x)
-	print("avg_pool",x.shape)
-	x = Dropout(0.8)(x)
-	x = Dense(4096, activation='softmax')(x)
-	return(x)
+    x = GlobalAveragePooling2D(data_format='channels_last')(x)
+    print("avg_pool",x.shape)
+    x = Dropout(0.8)(x)
+    print("drop out",x.shape)
+#	x = Dense(4096, activation='softmax')(x)
+    return(x)
 	
 def evaluate_voxel_prediction(prediction, gt):
   #"""  The prediction and gt are 3 dim voxels. Each voxel has values 1 or 0"""
@@ -393,23 +394,21 @@ class Network:
 			    x=stemblock(X_rgb)
 			    l12=inceptionresnet2(x)
 			    print("inception_net",l12.shape)
-			    fc = tools.Ops.xxlu(tools.Ops.fc(l12, out_d=4096, name='en_fc1'), label='lrelu')
-			    print("fc1_output_r2n",fc.shape)#fc1_output_r2n (?, 1024)
+			    fc = tools.Ops.xxlu(tools.Ops.fc(l12, out_d=2048, name='en_fc1'), label='lrelu')
+			    print("fc1_output_r2n",fc.shape)#fc1_output_r2n (?, 2048)
 			
 		with tf.variable_scope('Att_Net'):	
 			#### use fc attention
-			input = tf.reshape(fc, [-1, im_num, 4096],name="Att_fc_in")
-			print("att_fc_in_r2n",input.shape) #att_fc_in_r2n (?, ?, 4096)
+			input = tf.reshape(fc, [-1, im_num, 2048],name="Att_fc_in")
+			print("att_fc_in_r2n",input.shape) #att_fc_in_r2n (?, ?, 2048)
 			latent_3d, weights = attsets_fc(input, out_ele_num=1)
-			print("att_fc_out_r2n",latent_3d.shape) #att_fc_out_r2n (?, 4096)
+			print("att_fc_out_r2n",latent_3d.shape) #att_fc_out_r2n (?, 2048)
 			
 		with tf.variable_scope('Decoder'):
 			####
 			latent_3d = tools.Ops.xxlu(tools.Ops.fc(latent_3d, out_d=4*4*4*128, name='de_fc2'), label='lrelu')
-			print("fc3_out_r2n",latent_3d.shape) #fc3_out_r2n (?, 8192)
+			print("fc3_out_r2n",latent_3d.shape) #fc3_out_r2n (?, 2048)
 			latent_3d = tf.reshape(latent_3d, [-1, 4, 4, 4, 128],name="de_fc2_out")
-
-		####
 
 			de_c = [128, 128, 128, 64, 32, 1]
 			
@@ -517,8 +516,7 @@ class Network:
                 		self.base_en_optim2 = tf.train.AdamOptimizer(learning_rate=self.lr).minimize(self.mean_loss, var_list=base_en_var)
                 		self.base_de_optim2 = tf.train.AdamOptimizer(learning_rate=self.lr).minimize(self.mean_loss, var_list=base_dec_var)
                 		self.att_optim2 = tf.train.AdamOptimizer(learning_rate=self.lr).minimize(self.mean_loss, var_list=att_var)
-			    				
-		
+			    						
 		print ("total weights:",tools.Ops.variable_count())
 		self.saver = tf.train.Saver(max_to_keep=1)
 		config = tf.ConfigProto(allow_soft_placement=True)
@@ -566,15 +564,19 @@ class Network:
 				#single_view_train = True
 				#multi_view_train = True
 				
-				if epoch <= 5:
-					att_lr=.0002
-					ref_lr=.0002
-				if epoch > 5 and epoch <= 50:
+				if epoch <= 10:
+					att_lr=.001
+					ref_lr=.001
+				if epoch > 10 and epoch <=30:
+					att_lr=.0005
+					ref_lr=.0005
+				if epoch > 30 and epoch <=60:
 					att_lr=.0001
 					ref_lr=.0001
-				if epoch > 50:
+				if epoch > 60:
 					att_lr=.00005
-					ref_lr=.00005 
+					ref_lr=.00005					
+				 
 				###########  single view train
 				if single_view_train:
 					
