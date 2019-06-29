@@ -19,9 +19,9 @@ Bo Yang, Sen Wang, Andrew Markham, Niki Trigoni. arXiv preprint arXiv:1808.00758
 #### Trained on 3D-R2N2 dataset, 70M
 [https://drive.google.com/open?id=1A1ihqMDfZLrjQeCFWEjgp-WYb810_om-](https://drive.google.com/open?id=1A1ihqMDfZLrjQeCFWEjgp-WYb810_om-)
 ## (6) Requirements
-python 2.7 or 3.5
+python  3.5
 
-tensorflow 1.2 +
+tensorflow 1.11.0 
 
 numpy 1.13.3
 
