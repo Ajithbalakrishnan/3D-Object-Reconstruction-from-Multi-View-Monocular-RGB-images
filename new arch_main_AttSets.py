@@ -9,7 +9,7 @@ import numpy as np
 import time
 from tensorflow import keras
 from tensorflow.keras import backend
-from keras.layers import BatchNormalization,Conv3D,MaxPooling3D,Dense,Reshape,Add,LeakyReLU,Conv3DTranspose,Input, MaxPooling2D, GlobalAveragePooling2D, Dropout, Flatten, Activation, Concatenate, Lambda,Conv2D
+from keras.layers import BatchNormalization,Conv3D,MaxPooling3D,Dense,Reshape,Add,LeakyReLU,Conv3DTranspose,Input, MaxPooling2D, AveragePooling2D, Dropout, Flatten, Activation, Concatenate, Lambda,Conv2D,merge
 from keras.activations import relu,sigmoid,tanh
 from keras import models
 import copy 
@@ -60,143 +60,168 @@ def conv2d(x,numfilt,filtsz,stride_=1,pad='same',act=True,name=None):
         x = Activation('relu',name=name+'conv2d'+'act')(x)
     return x
 
-def incresA(x,scale,name=None):
+def inception_A(x,name=None):
     pad = 'same'
-    branch0 = conv2d(x,32,1,1,pad,True,name=name+'b0')
-    branch1 = conv2d(x,32,1,1,pad,True,name=name+'b1_1')
-    branch1 = conv2d(branch1,32,3,1,pad,True,name=name+'b1_2')
-    branch2 = conv2d(x,32,1,1,pad,True,name=name+'b2_1')
-    branch2 = conv2d(branch2,48,3,1,pad,True,name=name+'b2_2')
-    branch2 = conv2d(branch2,64,3,1,pad,True,name=name+'b2_3')
-    branches = [branch0,branch1,branch2]
-    mixed = Concatenate(axis=3, name=name + '_concat')(branches)
-    filt_exp_1x1 = conv2d(mixed,384,1,1,pad,False,name=name+'filt_exp_1x1')
-    final_lay = Lambda(lambda inputs, scale: inputs[0] + inputs[1] * scale,
-                      output_shape=backend.int_shape(x)[1:],
-                      arguments={'scale': scale},
-                      name=name+'act_scaling')([x, filt_exp_1x1])
-    return final_lay
+    branch0 = AveragePooling2D(pool_size=(3,3), strides=(1,1), padding=pad, data_format=None)(x)
+    branch0 = conv2d(branch0,96,1,1,pad,True,name=name+'b0_1')
     
-def incresB(x,scale,name=None):
+    branch1 = conv2d(x,96,1,1,pad,True,name=name+'b1_1')
+    
+    branch2 = conv2d(x,64,1,1,pad,True,name=name+'b2_1')
+    branch2 = conv2d(branch2,96,3,1,pad,True,name=name+'b2_2')
+    
+    branch3 = conv2d(x,64,1,1,pad,True,name=name+'b3_1')
+    branch3 = conv2d(branch3,96,3,1,pad,True,name=name+'b3_2')
+    branch3 = conv2d(branch3,96,3,1,pad,True,name=name+'b3_3')
+    
+    branches = [branch0,branch1,branch2,branch3]
+    mixed = Concatenate(axis=-1, name=name + '_concat')(branches)
+    return mixed
+    
+def inception_B(x,name=None):
     pad = 'same'
-    branch0 = conv2d(x,192,1,1,pad,True,name=name+'b0')
-    branch1 = conv2d(x,128,1,1,pad,True,name=name+'b1_1')
-    branch1 = conv2d(branch1,160,[1,7],1,pad,True,name=name+'b1_2')
-    branch1 = conv2d(branch1,192,[7,1],1,pad,True,name=name+'b1_3')
-    branches = [branch0,branch1]
-    mixed = Concatenate(axis=3, name=name + '_mixed')(branches)
-    filt_exp_1x1 = conv2d(mixed,1152,1,1,pad,False,name=name+'filt_exp_1x1')
-    final_lay = Lambda(lambda inputs, scale: inputs[0] + inputs[1] * scale,
-                      output_shape=backend.int_shape(x)[1:],
-                      arguments={'scale': scale},
-                      name=name+'act_scaling')([x, filt_exp_1x1])
-    return final_lay
+    branch0 = AveragePooling2D(pool_size=(3,3), strides=(1,1), padding=pad, data_format=None)(x)
+    branch0 = conv2d(branch0,128,1,1,pad,True,name=name+'b0_1')
     
-def incresC(x,scale,name=None):
+    branch1 = conv2d(x,384,1,1,pad,True,name=name+'b1_1')
+    
+    branch2 = conv2d(x,192,1,1,pad,True,name=name+'b2_1')
+    branch2 = conv2d(branch2,224,[1,7],1,pad,True,name=name+'b2_2')
+    branch2 = conv2d(branch2,256,[1,7],1,pad,True,name=name+'b2_3')
+    
+    branch3 = conv2d(x,192,1,1,pad,True,name=name+'b3_1')
+    branch3 = conv2d(branch3,192,[1,7],1,pad,True,name=name+'b3_2')
+    branch3 = conv2d(branch3,224,[7,1],1,pad,True,name=name+'b3_3')
+    branch3 = conv2d(branch3,224,[1,7],1,pad,True,name=name+'b3_4')
+    branch3 = conv2d(branch3,256,[7,1],1,pad,True,name=name+'b3_5')
+    
+    branches = [branch0,branch1,branch2,branch3]
+    mixed = Concatenate(axis=-1, name=name + '_concat')(branches)
+    return mixed
+    
+def inception_C(x,name=None):
     pad = 'same'
-    branch0 = conv2d(x,192,1,1,pad,True,name=name+'b0')
-    branch1 = conv2d(x,192,1,1,pad,True,name=name+'b1_1')
-    branch1 = conv2d(branch1,224,[1,3],1,pad,True,name=name+'b1_2')
-    branch1 = conv2d(branch1,256,[3,1],1,pad,True,name=name+'b1_3')
-    branches = [branch0,branch1]
-    mixed = Concatenate(axis=3, name=name + '_mixed')(branches)
-    filt_exp_1x1 = conv2d(mixed,2048,1,1,pad,False,name=name+'fin1x1')
-    final_lay = Lambda(lambda inputs, scale: inputs[0] + inputs[1] * scale,
-                      output_shape=backend.int_shape(x)[1:],
-                      arguments={'scale': scale},
-                      name=name+'act_saling')([x, filt_exp_1x1])
-    return final_lay
+    branch0 = AveragePooling2D(pool_size=(3,3), strides=(1,1), padding=pad, data_format=None,name='avg_pool')(x)
+    branch0 = conv2d(branch0,256,1,1,pad,True,name=name+'b0_1')
     
-def stemblock(img_input):
-	with tf.variable_scope('stemblock'):
+    branch1 = conv2d(x,256,1,1,pad,True,name=name+'b1_1')
+    branch2 = conv2d(x,384,1,1,pad,True,name=name+'b2_1')
+    branch2_0 = conv2d(branch2,256,(1,3),1,pad,True,name=name+'b2_2')
+    branch2_1 = conv2d(branch2,256,[3,1],1,pad,True,name=name+'b2_3')
+    branches = [branch2_0,branch2_1]
+    intermediate_1 = Concatenate(axis=-1, name=name + '_concat')(branches)
+    branch3 = conv2d(x,384,1,1,pad,True,name=name+'b3_1')
+    branch3 = conv2d(branch3,448,[1,3],1,pad,True,name=name+'b3_2')
+    branch3 = conv2d(branch3,512,[3,1],1,pad,True,name=name+'b3_3')
+    branch3_1 = conv2d(branch3,256,[3,1],1,pad,True,name=name+'b3_4')
+    branch3_2 = conv2d(branch3,256,[1,3],1,pad,True,name=name+'b3_5')
+    branches = [branch3_1,branch3_2]
+    intermediate_2 = Concatenate(axis=-1, name=name + '_concat')(branches)
+    branches = [branch0,branch1,intermediate_1,intermediate_2]
+    mixed = Concatenate(axis=-1, name=name + '_concat')(branches)
+    return mixed
+    
+def inception_stem(img_input):
+	
 		x = conv2d(img_input,32,3,2,'valid',True,name='conv1')
 		x = conv2d(x,32,3,1,'valid',True,name='conv2')
-		x = conv2d(x,64,3,1,'valid',True,name='conv3')
+		x = conv2d(x,64,3,1,'same',True,name='conv3')
 
-		x_11 = MaxPooling2D(3,strides=1,padding='valid',name='stem_br_11'+'_maxpool_1')(x)
-		x_12 = conv2d(x,64,3,1,'valid',True,name='stem_br_12')
+		x_11 = MaxPooling2D(pool_size=(3,3),strides=2,padding='valid',name='stem_br_11'+'_maxpool_1')(x)
+		x_12 = conv2d(x,96,3,2,'valid',True,name='stem_br_12')
 
-		x = Concatenate(axis=3, name = 'stem_concat_1')([x_11,x_12])
-
+		x = Concatenate(axis=-1, name = 'stem_concat_1')([x_11,x_12])
 		x_21 = conv2d(x,64,1,1,'same',True,name='stem_br_211')
-		x_21 = conv2d(x_21,64,[1,7],1,'same',True,name='stem_br_212')
-		x_21 = conv2d(x_21,64,[7,1],1,'same',True,name='stem_br_213')
+		x_21 = conv2d(x_21,64,[7,1],1,'same',True,name='stem_br_212')
+		x_21 = conv2d(x_21,64,[1,7],1,'same',True,name='stem_br_213')		
 		x_21 = conv2d(x_21,96,3,1,'valid',True,name='stem_br_214')
+		
 
 		x_22 = conv2d(x,64,1,1,'same',True,name='stem_br_221')
 		x_22 = conv2d(x_22,96,3,1,'valid',True,name='stem_br_222')
 
-		x = Concatenate(axis=3, name = 'stem_concat_2')([x_21,x_22])
+		x = Concatenate(axis=-1, name = 'stem_concat_2')([x_21,x_22])
 
-		x_31 = conv2d(x,192,3,1,'valid',True,name='stem_br_31')
-		x_32 = MaxPooling2D(3,strides=1,padding='valid',name='stem_br_32'+'_maxpool_2')(x)
-		x = Concatenate(axis=3, name = 'stem_concat_3')([x_31,x_32])
+		x_31 = conv2d(x,192,3,2,'valid',True,name='stem_br_31')
+		x_32 = MaxPooling2D(3,strides=2,padding='valid',name='stem_br_32'+'_maxpool_2')(x)
+		x = Concatenate(axis=-1, name = 'stem_concat_3')([x_31,x_32])
 		return(x)
+		
+def reduction_A(x,name):
+    pad = 'same'
+    branch0 = MaxPooling2D(pool_size=(3,3), strides=(2,2), padding='valid', data_format=None)(x)
+    branch1 = conv2d(x,384,3,2,'valid',True,name=name+'b1_1')
+    branch2 = conv2d(x,192,1,1,pad,True,name=name+'b2_1')
+    branch2 = conv2d(branch2,224,3,1,'same',True,name=name+'b2_2')
+    branch2 = conv2d(branch2,256,3,2,'valid',True,name=name+'b2_3')
+    branches = [branch0,branch1,branch2]
+    mixed = Concatenate(axis=-1, name=name + '_concat')(branches)
+    return mixed
+    		
+def reduction_B(x,name):
+    pad = 'same'
+    branch0 = MaxPooling2D(pool_size=(3,3), strides=(2,2), padding='valid', data_format=None)(x)
+    
+    branch1 = conv2d(x,192,1,1,pad,True,name=name+'b1_1')
+    branch1 = conv2d(branch1,192,3,2,'valid',True,name=name+'b1_2')
+    
+    branch2 = conv2d(x,256,1,1,pad,True,name=name+'b2_1')
+    branch2 = conv2d(branch2,256,(1,7),1,pad,True,name=name+'b2_2')
+    branch2 = conv2d(branch2,320,(7,1),1,pad,True,name=name+'b2_3')
+    branch2 = conv2d(branch2,320,(3,3),2,'valid',True,name=name+'b2_4')
+    
+    branches = [branch0,branch1,branch2]
+    mixed = Concatenate(axis=-1, name=name + '_concat')(branches)
+    return mixed    
 
-def inceptionresnet2(x):
-    with tf.variable_scope('InceptionResNetA'):
-		#Inception-ResNet-A modules
-        x = incresA(x,0.15,name='incresA_1')
-        x = incresA(x,0.15,name='incresA_2')
-        x = incresA(x,0.15,name='incresA_3')
-        x = incresA(x,0.15,name='incresA_4')
-        print("A modules",x.shape)
-
+def inceptionnet(x):
+    print('Inception_input',x.shape)
+    
+    with tf.variable_scope('stemblock'):
+        x1 = inception_stem(x)
+    print("stem out ",x1.shape)
+    
+    with tf.variable_scope('InceptinNetA'):
+	    # 4 x Inception A
+        for i in range(4):
+            x2 = inception_A(x1,name='inception_A')
+        print("inceptionnetA ",x2.shape)	    
+	    
     with tf.variable_scope('ReductionModuleA'):
-		#35 × 35 to 17 × 17 reduction module.
-        x_red_11 = MaxPooling2D(3,strides=2,padding='valid',name='red_maxpool_1')(x)
-
-        x_red_12 = conv2d(x,384,3,2,'valid',True,name='x_red1_c1')
-
-        x_red_13 = conv2d(x,256,1,1,'same',True,name='x_red1_c2_1')
-        x_red_13 = conv2d(x_red_13,256,3,1,'same',True,name='x_red1_c2_2')
-        x_red_13 = conv2d(x_red_13,384,3,2,'valid',True,name='x_red1_c2_3')
-
-        x = Concatenate(axis=3, name='red_concat_1')([x_red_11,x_red_12,x_red_13])
-        print("1st reduction modules",x.shape)
-
-    with tf.variable_scope('InceptionResNetB'):    
-		#Inception-ResNet-B modules
-        x = incresB(x,0.1,name='incresB_1')
-        x = incresB(x,0.1,name='incresB_2')
-        x = incresB(x,0.1,name='incresB_3')
-        x = incresB(x,0.1,name='incresB_4')
-        x = incresB(x,0.1,name='incresB_5')
-        x = incresB(x,0.1,name='incresB_6')
-        x = incresB(x,0.1,name='incresB_7')
-        print("B modules",x.shape)
-
+	    # Reduction A
+        x3 = reduction_A(x2,name='reduction_A')
+        print("reduction A out ",x3.shape)
+	
+    with tf.variable_scope('InceptionNetB'):	    
+    	    # 7 x Inception B
+        for i in range(7):
+            x4 = inception_B(x3,name='inception_B')
+        print("InceptionB",x4.shape)	    
+	    
     with tf.variable_scope('ReductionModuleB'):
-		#17 × 17 to 8 × 8 reduction module.
-        x_red_21 = MaxPooling2D(3,strides=2,padding='valid',name='red_maxpool_2')(x)
+    	# Reduction B
+    	x5 = reduction_B(x4,name='reduction_B')
+    	print("reduction B out",x5.shape)
+    	
+    with tf.variable_scope('InceptionNetC'):
+    	# 3 x Inception C
+        for i in range(3):
+            x6 = inception_C(x5,name='Inception_C')
+        print("InceptionC",x6.shape)
+        
+    # Average Pooling
+    x7 = AveragePooling2D((2, 2))(x6)
+    print("Avgpool",x7.shape)
 
-        x_red_22 = conv2d(x,256,1,1,'same',True,name='x_red2_c11')
-        x_red_22 = conv2d(x_red_22,384,3,2,'valid',True,name='x_red2_c12')
+    # Dropout
+    x8 = Dropout(0.8)(x7)
+    print("dropout",x8.shape)
+    x9 = Flatten()(x8)
+    print("flatten",x9.shape)
 
-        x_red_23 = conv2d(x,256,1,1,'same',True,name='x_red2_c21')
-        x_red_23 = conv2d(x_red_23,256,3,2,'valid',True,name='x_red2_c22')
-
-        x_red_24 = conv2d(x,256,1,1,'same',True,name='x_red2_c31')
-        x_red_24 = conv2d(x_red_24,256,3,1,'same',True,name='x_red2_c32')
-        x_red_24 = conv2d(x_red_24,256,3,2,'valid',True,name='x_red2_c33')
-
-        x = Concatenate(axis=3, name='red_concat_2')([x_red_21,x_red_22,x_red_23,x_red_24])
-        print("2nd reduction modules",x.shape)
-
-    with tf.variable_scope('InceptionResNetC'): 
-		#Inception-ResNet-C modules
-        x = incresC(x,0.2,name='incresC_1')
-        x = incresC(x,0.2,name='incresC_2')
-        x = incresC(x,0.2,name='incresC_3')
-        print("C modules",x.shape)
-
-	#TOP
-    x = GlobalAveragePooling2D(data_format='channels_last')(x)
-    print("avg_pool",x.shape)
-    x = Dropout(0.8)(x)
-    print("drop out",x.shape)
-#	x = Dense(4096, activation='softmax')(x)
-    return(x)
+    # Output
+    out = Dense(units=2048)(x9)
+    return(out)
 	
 def evaluate_voxel_prediction(prediction, gt):
   #"""  The prediction and gt are 3 dim voxels. Each voxel has values 1 or 0"""
@@ -391,15 +416,14 @@ class Network:
 			print("base_r2n2",X_rgb.shape) #base_r2n2 (?, 127, 127, 3)
 			with tf.variable_scope('en'):
 			
-			    x=stemblock(X_rgb)
-			    l12=inceptionresnet2(x)
+			    l12=inceptionnet(X_rgb)
 			    print("inception_net",l12.shape)
-			    fc = tools.Ops.xxlu(tools.Ops.fc(l12, out_d=2048, name='en_fc1'), label='lrelu')
-			    print("fc1_output_r2n",fc.shape)#fc1_output_r2n (?, 2048)
+#			    fc = tools.Ops.xxlu(tools.Ops.fc(l12, out_d=2048, name='en_fc1'), label='lrelu')
+#			    print("fc1_output_r2n",fc.shape)#fc1_output_r2n (?, 2048)
 			
 		with tf.variable_scope('Att_Net'):	
 			#### use fc attention
-			input = tf.reshape(fc, [-1, im_num, 2048],name="Att_fc_in")
+			input = tf.reshape(l12, [-1, im_num, 2048],name="Att_fc_in")
 			print("att_fc_in_r2n",input.shape) #att_fc_in_r2n (?, ?, 2048)
 			latent_3d, weights = attsets_fc(input, out_ele_num=1)
 			print("att_fc_out_r2n",latent_3d.shape) #att_fc_out_r2n (?, 2048)
@@ -407,7 +431,7 @@ class Network:
 		with tf.variable_scope('Decoder'):
 			####
 			latent_3d = tools.Ops.xxlu(tools.Ops.fc(latent_3d, out_d=4*4*4*128, name='de_fc2'), label='lrelu')
-			print("fc3_out_r2n",latent_3d.shape) #fc3_out_r2n (?, 2048)
+			print("fc3_out_r2n",latent_3d.shape) #fc3_out_r2n (?, 8192)
 			latent_3d = tf.reshape(latent_3d, [-1, 4, 4, 4, 128],name="de_fc2_out")
 
 			de_c = [128, 128, 128, 64, 32, 1]
@@ -565,17 +589,17 @@ class Network:
 				#multi_view_train = True
 				
 				if epoch <= 10:
-					att_lr=.001
-					ref_lr=.001
+					att_lr=.0003
+					ref_lr=.0003
 				if epoch > 10 and epoch <=30:
-					att_lr=.0005
-					ref_lr=.0005
-				if epoch > 30 and epoch <=60:
 					att_lr=.0001
 					ref_lr=.0001
-				if epoch > 60:
+				if epoch > 30 and epoch <=60:
 					att_lr=.00005
-					ref_lr=.00005					
+					ref_lr=.00005
+				if epoch > 60:
+					att_lr=.00001
+					ref_lr=.00001					
 				 
 				###########  single view train
 				if single_view_train:
