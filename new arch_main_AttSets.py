@@ -214,13 +214,13 @@ def inceptionnet(x):
     print("Avgpool",x7.shape)
 
     # Dropout
-    x8 = Dropout(0.8)(x7)
-    print("dropout",x8.shape)
-    x9 = Flatten()(x8)
+#    x8 = Dropout(0.8)(x7)
+#    print("dropout",x8.shape)
+    x9 = Flatten()(x7)
     print("flatten",x9.shape)
 
     # Output
-    out = Dense(units=2048)(x9)
+    out = Dense(units=1024)(x9)
     return(out)
 	
 def evaluate_voxel_prediction(prediction, gt):
@@ -423,7 +423,7 @@ class Network:
 			
 		with tf.variable_scope('Att_Net'):	
 			#### use fc attention
-			input = tf.reshape(l12, [-1, im_num, 2048],name="Att_fc_in")
+			input = tf.reshape(l12, [-1, im_num, 1024],name="Att_fc_in")
 			print("att_fc_in_r2n",input.shape) #att_fc_in_r2n (?, ?, 2048)
 			latent_3d, weights = attsets_fc(input, out_ele_num=1)
 			print("att_fc_out_r2n",latent_3d.shape) #att_fc_out_r2n (?, 2048)
