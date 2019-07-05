@@ -23,7 +23,7 @@ total_mv = 24
 GPU0 = '0'
 GPU1 = '1'
 
-re_train=False
+re_train=True
 #re_train=True
 single_view_train = True
 multi_view_train = True
@@ -36,12 +36,12 @@ iii=0
 config={}                                 # python dictionary
 config['batch_size'] = batch_size
 config['total_mv'] = total_mv
-config['cat_names'] = ['02828884','04530566','03636649']
+config['cat_names'] = ['02691156','02828884','04530566','03636649','03001627']
 #config['cat_names'] = ['02691156','02828884','02933112','02958343','03001627','03211117',
 #            '03636649','03691459','04090263','04256520','04379243','04401088','04530566']
 #config['cat_names'] = ['02828884']
 for name in config['cat_names']:
-    config['X_rgb_'+name] = '/home/gpu/Desktop/Ajith_Balakrishnan/Data_sample/ShapeNetRendering/'+name+'/'
+    config['X_rgb_'+name] = '/home/wiproec4/3d reconstruction/attsets/Data_sample/shapenet dataset/ShapeNetRendering/train_1_dataset/'+name+'/'
     config['Y_vox_'+name] = '/home/gpu/Desktop/Ajith_Balakrishnan/Data_sample/ShapeNetVox32/'+name+'/'
 
 # output : {'batch_size': 1, 'total_mv': 24, 'cat_names': ['03001627'], 'Y_vox_03001627': '/home/wiproec4/3d reconstruction/attsets/Data_sample/#ShapeNetVox32/03001627/', 'X_rgb_03001627': '/home/wiproec4/3d reconstruction/attsets/Data_sample/ShapeNetRendering/03001627/'}
@@ -269,6 +269,9 @@ class Network:
 			en_c = [96, 128, 256, 256, 256, 256]
 			l1 = tools.Ops.xxlu(tools.Ops.conv2d(X_rgb, k=7, out_c=en_c[0], str=1, name='en_c1'), label='lrelu')
 			print("l1_r2n",l1.shape) #l1_r2n (?, 127, 127, 96)
+			
+			
+			
 			l2 = tools.Ops.xxlu(tools.Ops.conv2d(l1, k=3, out_c=en_c[0], str=1, name='en_c2'), label='lrelu')
 			l2 = tools.Ops.maxpool2d(l2, k=2, s=2, name='en_mp1')
 			print("l2_r2n",l2.shape) #l2_r2n (?, 64, 64, 96)
