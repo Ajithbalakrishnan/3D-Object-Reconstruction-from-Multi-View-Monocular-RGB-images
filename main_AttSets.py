@@ -23,7 +23,7 @@ total_mv = 24
 GPU0 = '0'
 GPU1 = '1'
 
-re_train=False
+re_train=True
 #re_train=True
 single_view_train = True
 multi_view_train = True
@@ -36,13 +36,13 @@ iii=0
 config={}                                 # python dictionary
 config['batch_size'] = batch_size
 config['total_mv'] = total_mv
-config['cat_names'] = ['02828884','04530566','03636649']
+config['cat_names'] = ['02691156','02828884','04530566','03636649','03001627']
 #config['cat_names'] = ['02691156','02828884','02933112','02958343','03001627','03211117',
 #            '03636649','03691459','04090263','04256520','04379243','04401088','04530566']
 #config['cat_names'] = ['02828884']
 for name in config['cat_names']:
-    config['X_rgb_'+name] = '/home/gpu/Desktop/Ajith_Balakrishnan/Data_sample/ShapeNetRendering/'+name+'/'
-    config['Y_vox_'+name] = '/home/gpu/Desktop/Ajith_Balakrishnan/Data_sample/ShapeNetVox32/'+name+'/'
+    config['X_rgb_'+name] = '/home/wiproec4/3d reconstruction/attsets/Data_sample/shapenet dataset/ShapeNetRendering/train_1_dataset/'+name+'/'
+    config['Y_vox_'+name] = '/home/wiproec4/3d reconstruction/attsets/Data_sample/shapenet dataset/ShapeNetVox32/train_1_dataset/'+name+'/'
 
 # output : {'batch_size': 1, 'total_mv': 24, 'cat_names': ['03001627'], 'Y_vox_03001627': '/home/wiproec4/3d reconstruction/attsets/Data_sample/#ShapeNetVox32/03001627/', 'X_rgb_03001627': '/home/wiproec4/3d reconstruction/attsets/Data_sample/ShapeNetRendering/03001627/'}
 
@@ -94,23 +94,26 @@ def refiner_network(volumes_in):
             rn1=Conv3D(filters=32, kernel_size=(4, 4, 4), padding='same',data_format="channels_last",name='ref_c1')(input_volumes_32)
             rn2=BatchNormalization()(rn1)
             rn3=LeakyReLU(alpha=.2)(rn2)
+            print("rn3.shape",rn3.shape)                              # rn3.shape (?, 32, 32, 32, 32)
             volumes_16_l =MaxPooling3D(pool_size=(2, 2, 2),name='ref_m1')(rn3)
 	
             print("volumes_16_l_shape" , volumes_16_l.shape)      #volumes_16_l_shape (?,16,16,16,32)
 	
-            rn5=Conv3D(filters=64, kernel_size=(4, 4, 4), padding='same',data_format="channels_last",name='ref_c2')(volumes_16_l)
+            rn5=Conv3D(filters=64, kernel_size=(4, 4, 4), padding='same',data_format="channels_last",name='ref_c2')(volumes_16_l)           
             rn6=BatchNormalization()(rn5)
             rn7=LeakyReLU(alpha=.2)(rn6)
+            print("rn7.shape",rn7.shape)                            #rn7.shape (?, 16, 16, 16, 64)
             volumes_8_l =MaxPooling3D(pool_size=(2, 2, 2),name='ref_m2')(rn7)
 		
-            print("volumes_8_l_shape" ,volumes_8_l.shape)
+            print("volumes_8_l_shape" ,volumes_8_l.shape)          #volumes_8_l_shape (?,8,8,8,64)
 		
             rn9=Conv3D(filters=128, kernel_size=(4, 4, 4), padding='same',data_format="channels_last",name='ref_c3')(volumes_8_l)
             rn10=BatchNormalization()(rn9)
             rn11=LeakyReLU(alpha=.2)(rn10)
+            print("rn11.shape",rn11.shape)                         #rn11.shape (?, 8, 8, 8, 128)
             volumes_4_l =MaxPooling3D(pool_size=(2, 2, 2),name='ref_m3')(rn11)
 		
-            print("volumes_4_l_shape" , volumes_4_l.shape)
+            print("volumes_4_l_shape" , volumes_4_l.shape)    #volumes_4_l_shape (?,4,4,4,128)
 		
             flatten_features=tf.reshape(volumes_4_l , [-1,8192],name="ref_fc1_in")   
         with tf.variable_scope('ref_fc'):
@@ -120,13 +123,13 @@ def refiner_network(volumes_in):
             
             fc1=relu(fc1, alpha=0.0, max_value=None, threshold=0.0)
 		
-            print("fc1_shape",fc1.shape)
+            print("fc1_shape",fc1.shape)       #fc1_shape (?,4,4,4,2048)
 		
             fc2=Dense(units=8192, activation='relu',name='ref_fc2')(fc1)
 #            fc2=tanh(fc2)
             fc2=relu(fc2, alpha=0.0, max_value=None, threshold=0.0)
 		
-            print("fc2_shape",fc2.shape)
+            print("fc2_shape",fc2.shape)      #fc2_shape (?,4,4,4,8192)
 			
             fc2=tf.reshape(fc2, [-1, 4,4,4,128],name="ref_fc2_out")     
 		
@@ -134,18 +137,18 @@ def refiner_network(volumes_in):
 		
             reshaped_1=Add()([fc2,volumes_4_l]) 
 		
-            print("reshaped_1.shape",reshaped_1.shape)
+            print("reshaped_1.shape",reshaped_1.shape) #reshaped_1.shape (?,4,4,4,128)
 
             rn13=Conv3DTranspose(filters=64, kernel_size=(4, 4, 4), padding='same',data_format="channels_last",name='ref_d1',strides=(2, 2, 2))(reshaped_1)
 	
             rn14=BatchNormalization()(rn13)
             volumes_4_r=relu(rn14, alpha=0.0, max_value=None, threshold=0.0)
 		
-            print("volumes_4_r_shape",volumes_4_r.shape)
+            print("volumes_4_r_shape",volumes_4_r.shape)  #volumes_4_r_shape (?,8,8,8,64)
 		
             reshaped_2=Add() ([volumes_4_r,volumes_8_l]) 
 		
-            print("reshaped_2_shape",reshaped_2.shape)
+            print("reshaped_2_shape",reshaped_2.shape)   #volumes_2_shape (?,8,8,8,64)
 
 	
             rn16=Conv3DTranspose(filters=32, kernel_size=(4, 4, 4), padding='same',data_format="channels_last",name='ref_d2',strides=(2, 2, 2))(reshaped_2)
@@ -154,22 +157,22 @@ def refiner_network(volumes_in):
 		 
             reshaped_3=Add()([volumes_8_r,volumes_16_l])
 		
-            print("reshaped_3_shape",reshaped_3.shape)
+            print("reshaped_3_shape",reshaped_3.shape)    #reshaped_3_shape (?,16,16,16,32)
 		
 	
             rn19=Conv3DTranspose(filters=1, kernel_size=(4, 4, 4), padding='same',data_format="channels_last",name='ref_d3',strides=(2, 2, 2))(volumes_8_r)
-            print("rn19_shape",rn19.shape)
+            print("rn19_shape",rn19.shape)                      #rn19_shape (?, ?, ?, ?, 1)        
 #            volumes_16_r= tf.nn.sigmoid(rn19,name='ref_sigmoid1')
 #            reshape_4=volumes_16_r                             ####################
 
             reshape_4=Add()([rn19,input_volumes_32])
             reshape_4=(reshape_4*0.5)
-            print("reshape_4_5",reshape_4.shape)
+            print("reshape_4_5",reshape_4.shape)       #reshape_4_5 (?,32,32,32,1)
             
             reshape_4= tf.nn.sigmoid(reshape_4,name='ref_sigmoid1')
            
 		
-            print("reshape_4_sig_shape",reshape_4.shape)
+            print("reshape_4_sig_shape",reshape_4.shape)  #reshape_4_sig_shape (?,32,32,32,1)
 		
             reshape_5=tf.reshape(reshape_4, [-1, vox_res32, vox_res32, vox_res32],name="ref_out")
 
@@ -265,13 +268,24 @@ class Network:
 			X_rgb = tf.reshape(X_rgb, [-1, int(d1), int(d2), int(cc)],name="en_in")
 			print("Network Structure")
 			print("base_r2n2",X_rgb.shape) #base_r2n2 (?, 127, 127, 3)
+			
+#			plot_buf_1= tf.reshape(X_rgb, [-1, 127, 127, 3]) ###################
+#			tf.summary.image("Input", plot_buf_1)###############################
 	 
 			en_c = [96, 128, 256, 256, 256, 256]
 			l1 = tools.Ops.xxlu(tools.Ops.conv2d(X_rgb, k=7, out_c=en_c[0], str=1, name='en_c1'), label='lrelu')
 			print("l1_r2n",l1.shape) #l1_r2n (?, 127, 127, 96)
+			
+#			plot_buf_1= tf.reshape(l1, [-1, 127, 127, 3]) ####################
+#			tf.summary.image("L1_en", plot_buf_1)#############################
+			
 			l2 = tools.Ops.xxlu(tools.Ops.conv2d(l1, k=3, out_c=en_c[0], str=1, name='en_c2'), label='lrelu')
 			l2 = tools.Ops.maxpool2d(l2, k=2, s=2, name='en_mp1')
 			print("l2_r2n",l2.shape) #l2_r2n (?, 64, 64, 96)
+			
+#			plot_buf_1= tf.reshape(l2, [-1, 32, 32, 3]) #########################
+#			tf.summary.image("L2_MP_en", plot_buf_1)#############################
+			
 			l3 = tools.Ops.xxlu(tools.Ops.conv2d(l2, k=3, out_c=en_c[1], str=1, name='en_c3'), label='lrelu')
 			print("l3_r2n",l3.shape) #l3_r2n (?, 64, 64, 128)
 			l4 = tools.Ops.xxlu(tools.Ops.conv2d(l3, k=3, out_c=en_c[1], str=1, name='en_c4'), label='lrelu')
@@ -281,6 +295,9 @@ class Network:
 			l4 = l4 + l22
 			l4 = tools.Ops.maxpool2d(l4, k=2, s=2, name='en_mp2')
 			print("l4+l22_r2n",l4.shape) #l4+l22_r2n (?, 32, 32, 128)
+			
+#			plot_buf_1= tf.reshape(l4, [-1, 32, 32, 3]) ##########################
+#			tf.summary.image("l4+l22_en", plot_buf_1)#############################
 
 			l5 = tools.Ops.xxlu(tools.Ops.conv2d(l4, k=3, out_c=en_c[2], str=1, name='en_c5'), label='lrelu')
 			print("l5_r2n",l5.shape) #l5_r2n (?, 32, 32, 256)
@@ -291,6 +308,9 @@ class Network:
 			l6 = l6 + l44
 			l6 = tools.Ops.maxpool2d(l6, k=2, s=2, name='en_mp3')
 			print("l6+l44_r2n",l6.shape) #l6+l44_r2n (?, 16, 16, 256)
+			
+#			plot_buf_1= tf.reshape(l6, [-1, 16, 16, 3]) ##########################
+#			tf.summary.image("l6+l44_en", plot_buf_1)#############################
 
 			l7 = tools.Ops.xxlu(tools.Ops.conv2d(l6, k=3, out_c=en_c[3], str=1, name='en_c7'), label='lrelu')
 			print("l7_r2n",l7.shape) #l7_r2n (?, 16, 16, 256)
@@ -301,6 +321,9 @@ class Network:
 #			l8=l8+l66
 			l8 = tools.Ops.maxpool2d(l8, k=2, s=2, name='en_mp4')
 			print("l8_r2n",l8.shape) #l8_r2n (?, 8, 8, 256)
+			
+#			plot_buf_1= tf.reshape(l8, [-1, 8, 8, 3]) ########################
+#			tf.summary.image("l8_en", plot_buf_1)#############################
 
 			l9 = tools.Ops.xxlu(tools.Ops.conv2d(l8, k=3, out_c=en_c[4], str=1, name='en_c9'), label='lrelu')
 			print("l9_r2n",l9.shape) #l9_r2n (?, 8, 8, 256)
@@ -311,6 +334,9 @@ class Network:
 			l10 = l10 + l88
 			l10 = tools.Ops.maxpool2d(l10, k=2, s=2, name='en_mp5')
 			print("l10_r2n",l10.shape) #l10_r2n (?, 4, 4, 256)
+			
+#			plot_buf_1= tf.reshape(l10, [-1, 4, 4, 3]) ########################
+#			tf.summary.image("l10_en", plot_buf_1)#############################
 
 			l11 = tools.Ops.xxlu(tools.Ops.conv2d(l10, k=3, out_c=en_c[5], str=1, name='en_c11'), label='lrelu')
 			print("l11_r2n",l11.shape) #l11_r2n (?, 4, 4, 256)
@@ -322,6 +348,8 @@ class Network:
 			l12 = tools.Ops.maxpool2d(l12, k=2, s=2, name='en_mp6')
 			print("l12_r2n",l12.shape) #l12_r2n (?, 2, 2, 256)
 			
+#			plot_buf_1= tf.reshape(l12, [-1, 2, 2, 3]) ########################
+#			tf.summary.image("l12_en", plot_buf_1)#############################
 		
 			[_, d1, d2, cc] = l12.get_shape()
 			l12 = tf.reshape(l12, [-1, int(d1) * int(d2) * int(cc)],name="en_fc1_in")
@@ -355,6 +383,9 @@ class Network:
 			print("d00_out_r2n",d00.shape)#d00_out_r2n (?, 8, 8, 8, 128)
 			d2 = d2 + d00
 			print("d2+d00_out_r2n",d2.shape)#d2+d00_out_r2n (?, 8, 8, 8, 128)
+			
+#			plot_buf_1= tf.reshape(d2, [-1, 8, 8, 4]) ################################
+#			tf.summary.image("d2+d00_out_de", plot_buf_1)#############################
 
 			d3 = tools.Ops.xxlu(tools.Ops.deconv3d(d2, k=3, out_c=de_c[2], str=2, name='de_c3'), label='lrelu')
 			print("d3_out_r2n",d3.shape)#d3_out_r2n (?, 16, 16, 16, 128)
@@ -364,6 +395,9 @@ class Network:
 			print("d22_out_r2n",d22.shape)#d22_out_r2n (?, 16, 16, 16, 128)
 			d4 = d4 + d22
 			print("d4+d22_out_r2n",d4.shape)#d4+d22_out_r2n (?, 16, 16, 16, 128)
+			
+#			plot_buf_1= tf.reshape(d4, [-1, 16, 16, 4]) ##############################
+#			tf.summary.image("d4+d22_out_de", plot_buf_1)#############################
 
 			d5 = tools.Ops.xxlu(tools.Ops.deconv3d(d4, k=3, out_c=de_c[3], str=2, name='de_c5'), label='lrelu')
 			print("d5_out_r2n",d5.shape)#d5_out_r2n (?, 32, 32, 32, 64)
@@ -373,6 +407,9 @@ class Network:
 			print("d44_out_r2n",d44.shape)#d44_out_r2n (?, 32, 32, 32, 64)
 			d6 = d6 + d44
 			print("d6+d44_out_r2n",d6.shape) #d6+d44_out_r2n (?, 32, 32, 32, 64)
+			
+#			plot_buf_1= tf.reshape(d6, [-1, 32, 32, 4]) ##############################
+#			tf.summary.image("d6+d44_out_de", plot_buf_1)#############################
 
 			d7 = tools.Ops.xxlu(tools.Ops.deconv3d(d6, k=3, out_c=de_c[4], str=1, name='de_c7'), label='lrelu')
 			print("d7_out_r2n",d7.shape) #d7_out_r2n (?, 32, 32, 32, 32)
@@ -382,9 +419,15 @@ class Network:
 			print("d77_out_r2n",d77.shape)#d77_out_r2n (?, 32, 32, 32, 32)
 			d8 = d8 + d77
 			print("d8+d77_out_r2n",d8.shape) #d8+d77_out_r2n (?, 32, 32, 32, 32)
+			
+#			plot_buf_1= tf.reshape(d8, [-1, 32, 32, 4]) ##############################
+#			tf.summary.image("d8+d77_out_de", plot_buf_1)#############################
 
 			d11 = tools.Ops.deconv3d(d8, k=3, out_c=de_c[5], str=1, name='de_c9')
 			print("d11_out_r2n",d11.shape) #d11_out_r2n (?, 32, 32, 32, 1)
+			
+#			plot_buf_1= tf.reshape(d11, [-1, 32, 32,4]) ##########################
+#			tf.summary.image("Ref_input", plot_buf_1)#############################
 			
 			ref_in = tf.reshape(d11, [-1, vox_res32, vox_res32, vox_res32],name="ref_in")     ###
 			
@@ -397,6 +440,9 @@ class Network:
 		with tf.variable_scope('ref_net'):
 		
 			ref_o=refiner_network(ref_in)
+			
+#			plot_buf_1= tf.reshape(ref_o, [-1, 32, 32,4]) ######################
+#			tf.summary.image("Ref_Out", plot_buf_1)#############################
 			
 			return ref_o,att_o, weights
 
@@ -497,7 +543,7 @@ class Network:
 
 				##### optiion 2: joint train, seperate optimize
 				single_view_train = True
-				multi_view_train = True
+				multi_view_train = False
 				
 				if epoch <= 5:
 					att_lr=.0002
