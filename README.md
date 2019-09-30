@@ -1,6 +1,6 @@
 # 3D-Model-Reconstruction from 2D images
 # A Novel Hybrid Ensemble Approach For 3D Object <br /> Reconstruction from Multi-View Monocular RGB images <br />for Robotic Simulations 
-Bo Yang, Sen Wang, Andrew Markham, Niki Trigoni. arXiv preprint arXiv:1808.00758, 2018.
+Ajith Balakrishnan, Dr. Sreeja S
 
 ## (1) Architecture
 ![Arch Image](https://github.com/Ajithbalakrishnan/3D-Model-Reconstruction/blob/master/imgs/structure_updated.png)
