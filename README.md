@@ -3,7 +3,7 @@
 Bo Yang, Sen Wang, Andrew Markham, Niki Trigoni. arXiv preprint arXiv:1808.00758, 2018.
 
 ## (1) Architecture
-![Arch Image](https://github.com/Yang7879/AttSets/blob/master/attsets_arch.png)
+![Arch Image](https://github.com/Ajithbalakrishnan/3D-Model-Reconstruction/blob/master/imgs/structure_updated.png)
 ## (2) Optimization
 ![Teaser Image](https://github.com/Yang7879/AttSets/blob/master/attsets_optim.png)
 ## (3) Sample Results
