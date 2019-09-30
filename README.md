@@ -1,5 +1,5 @@
 # 3D-Model-Reconstruction from 2D images
-# Attentional Aggregation of Deep Feature Sets <br /> for Multi-view 3D Reconstruction
+# A Novel Hybrid Ensemble Approach For 3D Object Reconstruction <br /> from Multi-View Monocular RGB images <br />for Robotic Simulations 
 Bo Yang, Sen Wang, Andrew Markham, Niki Trigoni. arXiv preprint arXiv:1808.00758, 2018.
 
 ## (1) Architecture
