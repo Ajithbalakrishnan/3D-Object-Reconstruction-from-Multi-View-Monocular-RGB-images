@@ -1,9 +1,9 @@
-# 3D-Model-Reconstruction - TF Implementation of Attsets
-# Attentional Aggregation of Deep Feature Sets <br /> for Multi-view 3D Reconstruction
-Bo Yang, Sen Wang, Andrew Markham, Niki Trigoni. arXiv preprint arXiv:1808.00758, 2018.
+# 3D-Model-Reconstruction from 2D images
+# A Novel Hybrid Ensemble Approach For 3D Object <br /> Reconstruction from Multi-View Monocular RGB images <br />for Robotic Simulations 
+Ajith Balakrishnan, Dr. Sreeja S
 
 ## (1) Architecture
-![Arch Image](https://github.com/Yang7879/AttSets/blob/master/attsets_arch.png)
+![Arch Image](https://github.com/Ajithbalakrishnan/3D-Model-Reconstruction/blob/master/imgs/structure_updated.png)
 ## (2) Optimization
 ![Teaser Image](https://github.com/Yang7879/AttSets/blob/master/attsets_optim.png)
 ## (3) Sample Results
