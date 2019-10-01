@@ -41,3 +41,8 @@ python demo_AttSets.py
 
 ## (8) Citation
 If you use the paper or code for your research, please cite:
+
+## (9) Special Thanks To
+https://github.com/Yang7879/AttSets
+https://github.com/chrischoy/3D-R2N2
+https://arxiv.org/pdf/1901.11153.pdf 
