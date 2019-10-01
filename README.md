@@ -4,10 +4,10 @@ Ajith Balakrishnan, Dr. Sreeja S
 
 ## (1) Architecture
 ![Arch Image](https://github.com/Ajithbalakrishnan/3D-Model-Reconstruction/blob/master/imgs/structure_updated.png)
-## (2) Optimization
-![Teaser Image](https://github.com/Yang7879/AttSets/blob/master/attsets_optim.png)
+## (2) STSO-JTSO Algorithm
+![Teaser Image](https://github.com/Ajithbalakrishnan/3D-Model-Reconstruction/blob/master/imgs/stsojtso.png)
 ## (3) Sample Results
-![Teaser Image](https://github.com/Yang7879/AttSets/blob/master/attsets_sample.png)
+![Teaser Image](https://github.com/Ajithbalakrishnan/3D-Model-Reconstruction/blob/master/imgs/qualitativeoutpus.png)
 
 ## (4) Data
 #### 3D-R2N2 Dataset
@@ -16,8 +16,9 @@ Ajith Balakrishnan, Dr. Sreeja S
 [https://github.com/akar43/lsm](https://github.com/akar43/lsm)
 
 ## (5) Released Model
-#### Trained on 3D-R2N2 dataset, 70M
-[https://drive.google.com/open?id=1A1ihqMDfZLrjQeCFWEjgp-WYb810_om-](https://drive.google.com/open?id=1A1ihqMDfZLrjQeCFWEjgp-WYb810_om-)
+#### Trained on 3D-R2N2 dataset
+will release soon
+
 ## (6) Requirements
 python  3.5
 
@@ -40,14 +41,3 @@ python demo_AttSets.py
 
 ## (8) Citation
 If you use the paper or code for your research, please cite:
-```
-@inProceedings{Yang18b,
-  title={Attentional Aggregation of Deep Feature Sets for Multi-view 3D Reconstruction},
-  author = {Bo Yang
-  and Sen Wang
-  and Andrew Markham
-  and Niki Trigoni,
-  booktitle={arXiv preprint arXiv:1808.00758},
-  year={2018}
-}
-```
