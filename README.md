@@ -7,7 +7,7 @@ Ajith Balakrishnan, Dr. Sreeja S
 ## (2) STSO-JTSO Algorithm
 ![Teaser Image](https://github.com/Ajithbalakrishnan/3D-Model-Reconstruction/blob/master/imgs/stsojtso.png)
 ## (3) Sample Results
-![Teaser Image]()
+![Teaser Image](https://github.com/Ajithbalakrishnan/3D-Object-Reconstruction-from-Multi-View-Monocular-RGB-images/blob/master/imgs/qualitativeoutpus.png)
 
 ## (4) Data
 #### 3D-R2N2 Dataset
