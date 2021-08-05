@@ -1,5 +1,5 @@
 # 3D-Model-Reconstruction from 2D images
-# A Novel Hybrid Ensemble Approach For 3D Object <br /> Reconstruction from Multi-View Monocular RGB images <br />for Robotic Simulations 
+# A Novel Hybrid Ensemble Approach For 3D Object <br /> Reconstruction from Multi-View Monocular RGB images for Robotic Simulations 
 Ajith Balakrishnan, Dr. Sreeja S
 
 ## (1) Architecture
