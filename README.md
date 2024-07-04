@@ -3,7 +3,7 @@
 Ajith Balakrishnan, Dr. Sreeja S
 
 ## (1) Architecture
-![Arch Image](https://github.com/Ajithbalakrishnan/3D-Model-Reconstruction/blob/master/imgs/structure_updated.png)
+![Arch Image](https://github.com/Ajithbalakrishnan/3D-Model-Reconstruction/blob/master/imgs/solution_arch.png)
 ## (2) STSO-JTSO Algorithm
 ![Teaser Image](https://github.com/Ajithbalakrishnan/3D-Model-Reconstruction/blob/master/imgs/stsojtso.png)
 ## (3) Sample Results
