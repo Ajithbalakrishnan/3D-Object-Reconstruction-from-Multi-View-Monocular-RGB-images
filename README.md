@@ -43,7 +43,7 @@ python demo_AttSets.py
 ## (8) Citation
 If you use the paper or code for your research, please cite :
 ```
-@article{wang2021you,
+@article{Refine3DNet,
   title={Refine3DNet: Scaling Precision in 3D Object Reconstruction from Multi-View RGB Images using Attention},
   author={Ajith Balakrishnan, Dr Sreeja S, Dr Linu Shine},
   journal={},
