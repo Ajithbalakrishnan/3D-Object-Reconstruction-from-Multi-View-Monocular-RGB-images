@@ -46,8 +46,9 @@ If you use the paper or code for your research, please cite :
 @article{Refine3DNet,
   title={Refine3DNet: Scaling Precision in 3D Object Reconstruction from Multi-View RGB Images using Attention},
   author={Ajith Balakrishnan, Dr Sreeja S, Dr Linu Shine},
-  journal={},
-  year={2024}
+  journal={ICVGIP},
+  year={2024},
+  doi={https://doi.org/10.1145/3702250.3702292}
 }
 ```
 
