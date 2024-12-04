@@ -2,6 +2,9 @@
 # A Novel Hybrid Ensemble Approach For 3D Object <br /> Reconstruction from Multi-View Monocular RGB images for Robotic Simulations 
 Ajith Balakrishnan, Dr. Sreeja S
 
+
+implementation of paper -  Refine3DNet: Scaling Precision in 3D Object Reconstruction from Multi-View RGB Images using Attention (https://arxiv.org/abs/2412.00731)
+
 ## (1) Architecture
 ![Overview Image](https://github.com/Ajithbalakrishnan/3D-Model-Reconstruction/blob/master/imgs/arch_overview.png)
 ![Arch Image](https://github.com/Ajithbalakrishnan/3D-Model-Reconstruction/blob/master/imgs/solution_arch.png)
